@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import './LandingPage.css';
+import cardipoolLogo from '../assets/cardipool.png';
 
 function LandingPage() {
   const navigate = useNavigate();
@@ -7,7 +8,10 @@ function LandingPage() {
 
   return (
     <div className="landing">
-      <div className="logo">cardipool</div>
+      <div className="logo">
+        <img src={cardipoolLogo} alt="cardipool logo" />
+        cardipool
+      </div>
       <button onClick={handleLogin}>Log in with SSO</button>
     </div>
   );

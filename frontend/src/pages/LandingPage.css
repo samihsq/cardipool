@@ -8,9 +8,18 @@
 }
 
 .logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   font-size: 3rem;
   font-weight: bold;
   margin-bottom: 2rem;
+  color: var(--cardinal-red);
+}
+
+.logo img {
+  height: 3rem;
+  width: auto;
 }
 
 button {
