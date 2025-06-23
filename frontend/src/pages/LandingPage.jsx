@@ -7,12 +7,12 @@ function LandingPage() {
   const handleLogin = () => navigate('/dashboard');
 
   return (
-    <div className="landing">
+    <div className="landing wave-bg">
       <div className="logo">
         <img src={cardipoolLogo} alt="cardipool logo" />
         cardipool
       </div>
-      <button onClick={handleLogin}>Log in with SSO</button>
+      <button onClick={handleLogin} className="login-btn">Log in to view</button>
     </div>
   );
 }

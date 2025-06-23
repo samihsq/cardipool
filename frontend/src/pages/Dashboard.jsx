@@ -23,7 +23,7 @@ function Dashboard() {
     <div className="dashboard wave-bg">
       <header className="dash-header">
         <div className="left">
-          <h1 className="cardipool-text">Cardipools</h1>
+          <h1 className="cardipool-text">cardipools:</h1>
           <Link to="/add" className="add-btn">+ add</Link>
         </div>
         <nav className="right">
