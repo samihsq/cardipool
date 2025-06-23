@@ -1,0 +1,129 @@
+.wave-bg {
+  background-color: #b3d8ff;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='20' viewBox='0 0 60 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 10 Q 7.5 0 15 10 T 30 10 T 45 10 T 60 10 V20 H0 Z' fill='%2380c0ff' opacity='0.25'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  color: #000;
+}
+
+.dash-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.dash-header .left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.add-btn {
+  background: #fff;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  text-decoration: none;
+  border: 1px solid #888;
+  color: #000;
+}
+
+.dash-header .right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.dash-header .right a {
+  text-decoration: none;
+  color: #000;
+}
+
+.profile {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+}
+
+.profile span {
+  font-size: 1.5rem;
+}
+
+.profile-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 150px;
+  z-index: 10;
+}
+
+.profile-menu .name {
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+}
+
+.profile-menu button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #0077cc;
+  text-align: left;
+  cursor: pointer;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 2rem;
+  padding: 2rem 1rem;
+  overflow: auto;
+}
+
+.list {
+  width: 280px;
+  max-height: 70vh;
+  background: #fffffff2;
+  backdrop-filter: blur(3px);
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.item {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+}
+
+.item.active {
+  background: #e6f3ff;
+}
+
+.details {
+  flex: 0 1 500px;
+  max-height: 70vh;
+  background: #fffffff2;
+  backdrop-filter: blur(3px);
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  padding: 1.5rem;
+  overflow-y: auto;
+} 
