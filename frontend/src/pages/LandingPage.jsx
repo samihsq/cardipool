@@ -12,6 +12,7 @@ function LandingPage() {
         <img src={cardipoolLogo} alt="cardipool logo" />
         cardipool
       </div>
+      <div className="collab-text">in collaboration with SGWU</div>
       <button onClick={handleLogin} className="login-btn">Log in to view</button>
     </div>
   );
