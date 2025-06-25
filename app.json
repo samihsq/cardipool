@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Cardipool",
+    "slug": "cardipool",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "sdkVersion": "53.0.0",
+    "platforms": ["ios", "android", "web"],
+    "jsEngine": "hermes",
+    "scheme": "cardipool",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#e6f3ff"
+    },
+    "updates": {
+      "enabled": false
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.stanford.cardipool"
+    },
+    "android": {
+      "package": "com.stanford.cardipool"
+    },
+    "developmentClient": {
+      "silentLaunch": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "cardipool"
+      }
+    }
+  }
+} 
