@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Select from 'react-select';
 import { AuthContext } from '../contexts/AuthContext';
 import { tagSelectStyles } from '../styles/tagStyles';
+import LoadingSpinner from '../components/LoadingSpinner';
 import './Dashboard.css';
+import '../styles/tagStyles.css';
 
 const CARPOOL_TYPES = {
     airport: { label: 'Airport', icon: '✈️' },
@@ -14,16 +16,18 @@ const CARPOOL_TYPES = {
 
 const Dashboard = () => {
   const { user, logout } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const location = useLocation();
   const [carpools, setCarpools] = useState([]);
   const [tags, setTags] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const profileRef = useRef(null);
   const [carpoolTypeFilter, setCarpoolTypeFilter] = useState(null);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const profileRef = useRef(null);
 
   const [filters, setFilters] = useState({
     search: '',
@@ -82,15 +86,35 @@ const Dashboard = () => {
   }, [filters, carpoolTypeFilter]);
 
   useEffect(() => {
+    if (location.state?.carpoolType) {
+      setCarpoolTypeFilter(location.state.carpoolType);
+    }
+  }, [location.state]);
+
+  useEffect(() => {
+    if (location.state?.newCarpoolId && carpools.length > 0) {
+      const carpoolToSelect = carpools.find(c => c.id === location.state.newCarpoolId);
+      if (carpoolToSelect) {
+        setSelected(carpoolToSelect);
+        navigate(location.pathname, { replace: true, state: {} });
+      }
+    }
+  }, [carpools, location.state, navigate]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
     const handleClickOutside = (event) => {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
-        setMenuOpen(false);
+        setShowProfileDropdown(false);
       }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
-  
+
   const handleSelectCarpool = (carpool) => {
     setSelected(carpool);
     setIsEditing(false);
@@ -147,20 +171,31 @@ const Dashboard = () => {
           <Link to="/add" className="add-btn">+ add</Link>
         </div>
         <nav className="right">
-          <Link to="/info">Info</Link>
-          <Link to="/help">Help</Link>
           <Link to="/my-trips">My Trips</Link>
-          <div className="profile" onClick={() => setMenuOpen(p => !p)} ref={profileRef}>
-            <span role="img" aria-label="profile">👤</span>
-            <span className="profile-name">{user?.firstName || user?.sunetId}</span>
-            {menuOpen && (
-              <div className="profile-menu">
-                <div className="name">{user?.displayName || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.sunetId}</div>
-                <div className="sunet-id">{user?.sunetId}</div>
-                {user?.email && <div className="email">{user?.email}</div>}
-                <button onClick={logout} className="logout-btn">Log out</button>
+          <div className="header-icons">
+            <Link to="/info" className="header-icon" title="Information">
+              Info
+            </Link>
+            <Link to="/help" className="header-icon" title="Help">
+              Help
+            </Link>
+          </div>
+          <div className="profile" ref={profileRef}>
+            <button 
+              className="profile-button"
+              onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+            >
+              <div className="profile-icon">
+                {user?.displayName?.[0] || user?.sunetId?.[0] || '👤'}
               </div>
-            )}
+            </button>
+            <div className={`profile-dropdown ${showProfileDropdown ? 'open' : ''}`}>
+              <div className="profile-info">
+                <div className="profile-name">{user?.displayName || user?.sunetId}</div>
+                <div className="profile-email">{user?.email || user?.sunetId + '@stanford.edu'}</div>
+              </div>
+              <button onClick={logout} className="logout-btn">Log out</button>
+            </div>
           </div>
         </nav>
       </header>
@@ -185,29 +220,28 @@ const Dashboard = () => {
                       className={`advanced-filters-toggle ${showAdvancedFilters ? 'open' : ''}`}
                       onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                   >
-                      Advanced {showAdvancedFilters ? '▲' : '▼'}
+                      <span>Advanced</span>
+                      <span className="toggle-icon"></span>
                   </div>
 
-                  {showAdvancedFilters && (
-                      <div className="advanced-filters-content">
-                          <Select isMulti name="tags" options={tags} value={selectedTagObjects} onChange={handleTagFilterChange} styles={tagSelectStyles} placeholder="Filter by tags..." />
-                          <label className="available-only-filter">
-                            <input type="checkbox" name="available_only" checked={filters.available_only} onChange={handleFilterChange} />
-                            Show available only
-                          </label>
-                          <div className="sort-filter">
-                              <select name="sortBy" value={filters.sortBy} onChange={handleFilterChange}>
-                                  <option value="departure_date">Departure Date</option>
-                                  <option value="created_at">Recently Created</option>
-                                  <option value="capacity">Capacity</option>
-                              </select>
-                              <select name="sortOrder" value={filters.sortOrder} onChange={handleFilterChange}>
-                                  <option value="ASC">Asc</option>
-                                  <option value="DESC">Desc</option>
-                              </select>
-                          </div>
+                  <div className={`advanced-filters-content ${showAdvancedFilters ? 'open' : ''}`}>
+                      <Select isMulti name="tags" options={tags} value={selectedTagObjects} onChange={handleTagFilterChange} styles={tagSelectStyles} placeholder="Filter by tags..." />
+                      <label className="available-only-filter">
+                        <input type="checkbox" name="available_only" checked={filters.available_only} onChange={handleFilterChange} />
+                        Show available only
+                      </label>
+                      <div className="sort-filter">
+                          <select name="sortBy" value={filters.sortBy} onChange={handleFilterChange}>
+                              <option value="departure_date">Departure Date</option>
+                              <option value="created_at">Recently Created</option>
+                              <option value="capacity">Capacity</option>
+                          </select>
+                          <select name="sortOrder" value={filters.sortOrder} onChange={handleFilterChange}>
+                              <option value="ASC">Ascending</option>
+                              <option value="DESC">Descending</option>
+                          </select>
                       </div>
-                  )}
+                  </div>
               </div>
               <CarpoolList carpools={carpools} selected={selected} onSelect={handleSelectCarpool} loading={loading} />
             </>
@@ -248,27 +282,48 @@ const Dashboard = () => {
 }
 
 const CarpoolList = ({ carpools, selected, onSelect, loading }) => {
-    const formatDate = d => d ? new Date(d).toLocaleDateString(undefined, {month: 'short', day: 'numeric'}) : 'N/A';
-    const formatTime = t => t ? new Date(`1970-01-01T${t}`).toLocaleTimeString(undefined, {hour: 'numeric', minute: '2-digit'}) : '';
+    const formatDate = d => new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const formatTime = t => t ? new Date(`1970-01-01T${t}Z`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) : '';
 
-    if (loading) return <div className="spinner-overlay"><div className="spinner"></div></div>;
-    if (carpools.length === 0) return (
-        <div className="empty-state">
-            <p>No carpools match your filters</p>
-            <Link to="/add" className="add-carpool-link">Create a new carpool</Link>
-        </div>
-    );
     return (
         <div className="carpool-list-container">
-            {carpools.map(c => (
-                <div key={c.id} className={`item ${selected?.id === c.id ? 'active' : ''}`} onClick={() => onSelect(c)}>
-                    <h3>{c.title}</h3>
-                    <div className="item-details">
-                        <span>📅 {formatDate(c.departure_date)} at {formatTime(c.departure_time)}</span>
-                        <span>{c.current_passengers}/{c.capacity} seats</span>
+            {loading && (
+                <div className="spinner-overlay"><LoadingSpinner /></div>
+            )}
+            
+            {carpools.length === 0 && !loading && (
+                <div className="empty-state">
+                    <p>No carpools match your filter</p>
+                    <Link to="/add" className="add-carpool-link">+ Add a new carpool</Link>
+                </div>
+            )}
+            
+            {carpools.map(carpool => (
+                <div key={carpool.id} className={`carpool-card ${selected?.id === carpool.id ? 'selected' : ''}`} onClick={() => onSelect(carpool)}>
+                    <div className="card-header">
+                        <h4 className="card-title">{carpool.title}</h4>
+                        <div className="card-capacity">{carpool.current_passengers}/{carpool.capacity} seats</div>
                     </div>
-                    <div className="item-tags">
-                        {c.tag_details?.map(t => <span key={t.id} className="tag" style={{'--tag-color': t.color}}>{t.name}</span>)}
+                    <div className="card-body">
+                        <div className="card-tags">
+                            {carpool.tag_details?.map(tag => (
+                                <span 
+                                    key={tag.id} 
+                                    className="tag" 
+                                    style={{ 
+                                        '--tag-color': tag.color,
+                                        '--tag-color-rgb': tag.color.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', '),
+                                        color: tag.color
+                                    }}
+                                >
+                                    {tag.name}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="card-footer">
+                        <div className="card-departure">{formatDate(carpool.departure_date)} @ {formatTime(carpool.departure_time)}</div>
+                        <div className="card-creator">by {carpool.creator_name}</div>
                     </div>
                 </div>
             ))}
@@ -277,248 +332,245 @@ const CarpoolList = ({ carpools, selected, onSelect, loading }) => {
 };
 
 const CarpoolDetails = ({ carpool, user, onEdit, onDelete, onUpdate, onBack }) => {
-    const [joinRequestStatus, setJoinRequestStatus] = useState({ loading: false, error: null, success: null });
-    const [carpoolRequests, setCarpoolRequests] = useState([]);
+    const [joinRequests, setJoinRequests] = useState([]);
+    const [isRequesting, setIsRequesting] = useState(false);
 
-    const formatDate = d => d ? new Date(d).toLocaleDateString(undefined, {year: 'numeric', month: 'long', day: 'numeric'}) : 'N/A';
-    const formatTime = t => t ? new Date(`1970-01-01T${t}`).toLocaleTimeString(undefined, {hour: 'numeric', minute: '2-digit'}) : '';
-    
+    const formatDeparture = () => {
+        if (!carpool.departure_date || !carpool.departure_time) return 'N/A';
+        return new Date(carpool.departure_date).toLocaleDateString() + ' at ' + new Date(`1970-01-01T${carpool.departure_time}Z`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' });
+    };
+
     useEffect(() => {
         const fetchRequests = async () => {
             if (user?.id === carpool.created_by) {
                 try {
                     const response = await fetch(`/api/carpools/${carpool.id}/requests`, { credentials: 'include' });
                     const data = await response.json();
-                    if(response.ok) setCarpoolRequests(data);
+                    if(response.ok) setJoinRequests(data);
                 } catch (err) { console.error("Failed to fetch join requests", err); }
             } else {
-                setCarpoolRequests([]);
+                setJoinRequests([]);
             }
         };
-        fetchRequests();
-    }, [carpool, user]);
+        if (carpool.id) fetchRequests();
+    }, [carpool.id, user?.id, carpool.created_by]);
 
     const handleJoinRequest = async () => {
-        setJoinRequestStatus({ loading: true, error: null, success: null });
+        setIsRequesting(true);
         try {
             const response = await fetch(`/api/carpools/${carpool.id}/join`, {
                 method: 'POST',
-                credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: 'I would like to join!' })
+                credentials: 'include',
+                body: JSON.stringify({ message: "I'd like to join!" })
             });
             const data = await response.json();
             if (response.ok) {
-                setJoinRequestStatus({ loading: false, error: null, success: 'Request sent successfully!' });
+                setIsRequesting(false);
+                alert('Request sent!');
             } else {
                 throw new Error(data.error || 'Failed to send request');
             }
         } catch (err) {
-            setJoinRequestStatus({ loading: false, error: err.message, success: null });
+            setIsRequesting(false);
+            alert(err.message);
         }
     };
-
+    
     const handleRequestStatusUpdate = async (requestId, status) => {
         try {
-            const response = await fetch(`/api/carpools/requests/${requestId}`, {
+            const response = await fetch(`/api/carpools/${carpool.id}/requests/${requestId}`, {
                 method: 'PUT',
-                credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({ status })
             });
             if (response.ok) {
-                setCarpoolRequests(prev => prev.map(r => r.id === requestId ? { ...r, status } : r));
-                onUpdate();
+                setJoinRequests(prev => prev.map(r => r.id === requestId ? { ...r, status } : r));
+                onUpdate(); // Re-fetch carpools to update capacity
             } else {
-                const data = await response.json();
-                alert(`Failed to update request: ${data.error}`);
+                throw new Error('Failed to update request status');
             }
         } catch (err) {
-            alert('An error occurred while updating the request.');
+            alert(err.message);
         }
     };
 
-    return (
-      <>
-        <button className="back-to-list-btn" onClick={onBack}>&larr; Back to List</button>
-        <div className="details-header">
-          <h2>{carpool.title}</h2>
-          {user?.id === carpool.created_by && (
-            <div className="carpool-actions">
-              <button onClick={onEdit} className="edit-btn">Edit</button>
-              <button onClick={() => onDelete(carpool.id)} className="delete-btn">Delete</button>
-            </div>
-          )}
-        </div>
-        {carpool.event_name && (
-            <div className="detail-item event-name">
-                <strong>Event:</strong> {carpool.event_name}
-            </div>
-        )}
-        <div className="details-grid">
-            <div><strong>Date:</strong> {formatDate(carpool.departure_date)}</div>
-            <div><strong>Time:</strong> {formatTime(carpool.departure_time)}</div>
-            <div><strong>Capacity:</strong> {carpool.current_passengers} / {carpool.capacity}</div>
-            <div><strong>Creator:</strong> {carpool.creator_name} ({carpool.creator_sunet_id})</div>
-        </div>
-        <div className="detail-item">
-            <strong>Pickup:</strong> {carpool.pickup_details || 'Not specified'}
-        </div>
-        <div className="detail-item">
-            <strong>Dropoff:</strong> {carpool.dropoff_details || 'Not specified'}
-        </div>
-        <div className="details-tags">
-          <strong>Tags:</strong> 
-          {carpool.tag_details?.map(t => <span key={t.id} className="tag" style={{'--tag-color': t.color}}>{t.name}</span>)}
-        </div>
-        <p className="details-description">{carpool.description}</p>
-        <p><strong>Contact:</strong> {carpool.contact}</p>
+    if (!carpool) {
+        return <div className="details-placeholder">Select a carpool to see details</div>;
+    }
 
-        {user?.id !== carpool.created_by && (
-            <button onClick={handleJoinRequest} disabled={joinRequestStatus.loading} className="join-btn">
-                {joinRequestStatus.loading ? 'Sending...' : 'Request to Join'}
-            </button>
-        )}
-        {joinRequestStatus.error && <p className="status-error">{joinRequestStatus.error}</p>}
-        {joinRequestStatus.success && <p className="status-success">{joinRequestStatus.success}</p>}
-        
-        {user?.id === carpool.created_by && carpoolRequests.length > 0 && (
-            <div className="join-requests">
-                <h3>Join Requests</h3>
-                {carpoolRequests.map(req => (
-                    <div key={req.id} className="request-item">
-                        <div className="request-info">
-                            <strong>{req.display_name}</strong> ({req.sunet_id})<br/>
-                            <small>{req.email}</small>
-                        </div>
-                        <div className="request-actions">
-                            {req.status === 'pending' ? (
-                                <>
-                                    <button onClick={() => handleRequestStatusUpdate(req.id, 'approved')} className="approve-btn">Approve</button>
-                                    <button onClick={() => handleRequestStatusUpdate(req.id, 'rejected')} className="reject-btn">Reject</button>
-                                </>
-                            ) : (
-                                <span className={`status-badge ${req.status}`}>{req.status}</span>
-                            )}
-                        </div>
-                    </div>
+    return (
+        <div className="details">
+            <div className="detail-header">
+                <button onClick={onBack} className="back-btn-mobile">&larr; Back</button>
+                <h2>{carpool.title}</h2>
+                <div className="detail-header-actions">
+                    {user?.id === carpool.created_by && (
+                        <>
+                            <button onClick={() => onEdit(carpool)} className="edit-btn">Edit</button>
+                            <button onClick={() => onDelete(carpool.id)} className="delete-btn">Delete</button>
+                        </>
+                    )}
+                </div>
+            </div>
+            
+            <div className="detail-tags">
+                {carpool.tag_details?.map(tag => (
+                    <span 
+                        key={tag.id} 
+                        className="tag" 
+                        style={{ 
+                            '--tag-color': tag.color,
+                            '--tag-color-rgb': tag.color.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', '),
+                            color: tag.color
+                        }}
+                    >
+                        {tag.name}
+                    </span>
                 ))}
             </div>
-        )}
-      </>
+
+            <div className="detail-grid">
+                <div className="detail-item">
+                    <span className="detail-label">From</span>
+                    <span className="detail-value">{carpool.pickup_details || 'N/A'}</span>
+                </div>
+                <div className="detail-item">
+                    <span className="detail-label">To</span>
+                    <span className="detail-value">{carpool.dropoff_details || 'N/A'}</span>
+                </div>
+                <div className="detail-item">
+                    <span className="detail-label">Departure</span>
+                    <span className="detail-value">{formatDeparture()}</span>
+                </div>
+                <div className="detail-item">
+                    <span className="detail-label">Capacity</span>
+                    <span className="detail-value">{carpool.current_passengers} / {carpool.capacity} seats</span>
+                </div>
+                <div className="detail-item">
+                    <span className="detail-label">Contact</span>
+                    <span className="detail-value">{carpool.email || carpool.phone || 'Not provided'}</span>
+                </div>
+                 <div className="detail-item">
+                    <span className="detail-label">Created By</span>
+                    <span className="detail-value">{carpool.creator_name}</span>
+                </div>
+            </div>
+
+            <div className="detail-item multiline">
+                <span className="detail-label">Description</span>
+                <p className="detail-value">{carpool.description || 'No description provided.'}</p>
+            </div>
+            
+            <div className="join-section">
+                {user?.id !== carpool.created_by && (
+                    <button onClick={handleJoinRequest} disabled={isRequesting} className="join-btn">
+                        {isRequesting ? 'Sending...' : 'Request to Join'}
+                    </button>
+                )}
+                {user?.id === carpool.created_by && joinRequests.length > 0 && (
+                    <div className="join-requests">
+                        <h3>Join Requests</h3>
+                        {joinRequests.map(req => (
+                            <div key={req.id} className="request-item">
+                                <div className="request-info">
+                                    <strong>{req.user_display_name}</strong> ({req.user_sunet_id})
+                                </div>
+                                <div className="request-actions">
+                                    {req.status === 'pending' ? (
+                                        <>
+                                            <button onClick={() => handleRequestStatusUpdate(req.id, 'approved')} className="approve-btn">Approve</button>
+                                            <button onClick={() => handleRequestStatusUpdate(req.id, 'rejected')} className="reject-btn">Reject</button>
+                                        </>
+                                    ) : (
+                                        <span className={`status ${req.status}`}>{req.status}</span>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
     );
 };
 
 const EditCarpoolForm = ({ carpool, onSave, onCancel, allTags }) => {
-    const [editData, setEditData] = useState({
-        title: carpool.title,
-        description: carpool.description || '',
-        contact: carpool.contact,
-        departure_date: carpool.departure_date ? new Date(carpool.departure_date).toISOString().split('T')[0] : '',
-        departure_time: carpool.departure_time || '',
-        capacity: carpool.capacity,
-        tags: carpool.tags || [],
-        carpool_type: carpool.carpool_type || 'other',
-        event_name: carpool.event_name || '',
-        pickup_details: carpool.pickup_details || '',
-        dropoff_details: carpool.dropoff_details || ''
-    });
-    const [isSaving, setIsSaving] = useState(false);
+    const [editedCarpool, setEditedCarpool] = useState({ ...carpool, tags: carpool.tags || [] });
 
     const handleEditChange = (e) => {
         const { name, value } = e.target;
-        setEditData(prev => ({ ...prev, [name]: value }));
+        setEditedCarpool(prev => ({ ...prev, [name]: value }));
     };
 
     const handleEditTagsChange = (selectedOptions) => {
-        setEditData(prev => ({ ...prev, tags: selectedOptions ? selectedOptions.map(option => option.value) : [] }));
+        setEditedCarpool(prev => ({ ...prev, tags: selectedOptions ? selectedOptions.map(o => o.value) : [] }));
     };
 
     const handleSave = (e) => {
         e.preventDefault();
-        setIsSaving(true);
-        onSave(editData).finally(() => setIsSaving(false));
+        onSave(editedCarpool);
     };
 
-    if (isSaving) {
-        return <div className="carpool-card"><LoadingSpinner /></div>;
-    }
-
-    const availableTagsForSelect = allTags.map(t => ({ value: t.id, label: t.name }));
-    const selectedTagsForSelect = availableTagsForSelect.filter(t => editData.tags.includes(t.value));
+    const selectedTagObjects = allTags.filter(tag => editedCarpool.tags.includes(tag.value));
+    
+    const departureDate = editedCarpool.departure_date ? new Date(editedCarpool.departure_date).toISOString().split('T')[0] : '';
 
     return (
-        <form className="details-edit-form" onSubmit={handleSave}>
+        <form onSubmit={handleSave} className="edit-form">
             <h3>Edit Carpool</h3>
 
-            <label>Title</label>
-            <input type="text" name="title" value={editData.title} onChange={handleEditChange} placeholder="Title" required />
-            
-            <label>Description</label>
-            <textarea name="description" value={editData.description} onChange={handleEditChange} placeholder="Description" />
-            
-            <div className="form-grid">
-                <div>
-                    <label>From</label>
-                    <input type="text" name="from_location" value={editData.from_location} onChange={handleEditChange} placeholder="From" required />
-                </div>
-                <div>
-                    <label>To</label>
-                    <input type="text" name="to_location" value={editData.to_location} onChange={handleEditChange} placeholder="To" required />
-                </div>
+            <div className="form-field full-width">
+                <label>Title</label>
+                <input type="text" name="title" value={editedCarpool.title} onChange={handleEditChange} required />
             </div>
             
-            <div className="form-grid">
-                <div>
-                    <label>Date</label>
-                    <input type="date" name="departure_date" value={editData.departure_date} onChange={handleEditChange} required />
-                </div>
-                <div>
-                    <label>Time</label>
-                    <input type="time" name="departure_time" value={editData.departure_time} onChange={handleEditChange} required />
-                </div>
+            <div className="form-field full-width">
+                <label>Description</label>
+                <textarea name="description" value={editedCarpool.description || ''} onChange={handleEditChange}></textarea>
             </div>
-            
-            <label>Type</label>
-            <select name="carpool_type" value={editData.carpool_type} onChange={handleEditChange} required>
-                <option value="other">Other</option>
-                <option value="airport">Airport</option>
-                <option value="event">Event</option>
-                <option value="commute">Commute</option>
-            </select>
-
-            {editData.carpool_type === 'event' && (
-                <>
-                    <label>Event Name</label>
-                    <input type="text" name="event_name" value={editData.event_name} onChange={handleEditChange} placeholder="Event Name" />
-                </>
-            )}
-
-            <label>Pickup Details</label>
-            <textarea name="pickup_details" value={editData.pickup_details} onChange={handleEditChange} placeholder="e.g. Tresidder flagpole" />
-            
-            <label>Dropoff Details</label>
-            <textarea name="dropoff_details" value={editData.dropoff_details} onChange={handleEditChange} placeholder="e.g. SFO Terminal 1" />
 
             <div className="form-grid">
-                <div>
+                <div className="form-field">
+                    <label>Email</label>
+                    <input type="email" name="email" value={editedCarpool.email || ''} onChange={handleEditChange} />
+                </div>
+                <div className="form-field">
+                    <label>Phone</label>
+                    <input type="tel" name="phone" value={editedCarpool.phone || ''} onChange={handleEditChange} />
+                </div>
+                <div className="form-field">
+                    <label>Departure Date</label>
+                    <input type="date" name="departure_date" value={departureDate} onChange={handleEditChange} required />
+                </div>
+                <div className="form-field">
+                    <label>Departure Time</label>
+                    <input type="time" name="departure_time" value={editedCarpool.departure_time || ''} onChange={handleEditChange} required />
+                </div>
+                <div className="form-field">
                     <label>Capacity</label>
-                    <input type="number" name="capacity" value={editData.capacity} onChange={handleEditChange} placeholder="Capacity" required min="1" />
-                </div>
-                <div>
-                    <label>Contact Info</label>
-                    <input type="text" name="contact" value={editData.contact} onChange={handleEditChange} placeholder="Contact Info" required />
+                    <input type="number" name="capacity" value={editedCarpool.capacity} onChange={handleEditChange} min="1" required />
                 </div>
             </div>
 
-            <label>Tags</label>
-            <Select isMulti name="tags" options={availableTagsForSelect} className="basic-multi-select" classNamePrefix="select"
-                placeholder="Select tags..." onChange={handleEditTagsChange} value={selectedTagsForSelect}
-            />
+            <div className="form-field full-width">
+                 <label>Pickup Details</label>
+                 <textarea name="pickup_details" value={editedCarpool.pickup_details || ''} onChange={handleEditChange} />
+            </div>
+            <div className="form-field full-width">
+                <label>Dropoff Details</label>
+                <textarea name="dropoff_details" value={editedCarpool.dropoff_details || ''} onChange={handleEditChange} />
+            </div>
+
+            <div className="form-field full-width">
+                <label>Tags</label>
+                <Select isMulti name="tags" options={allTags} value={selectedTagObjects} onChange={handleEditTagsChange} styles={tagSelectStyles} className="select-container" />
+            </div>
 
             <div className="form-actions">
-                <button type="submit" className="save-btn" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save'}</button>
                 <button type="button" onClick={onCancel} className="cancel-btn">Cancel</button>
+                <button type="submit" className="save-btn">Save</button>
             </div>
         </form>
     );

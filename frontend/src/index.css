@@ -6,6 +6,18 @@
 body {
   margin: 0;
   font-family: var(--font-family);
+  background-color: #b3d8ff;
+}
+
+html {
+  background-color: #b3d8ff;
+}
+
+/* Ensure form elements inherit the global font */
+input, button, textarea, select {
+  font-family: inherit;
+  font-size: 100%; /* Default to the parent's font size */
+  margin: 0;
 }
 
 * {

@@ -1,0 +1,100 @@
+/* === Tag Styles === */
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--tag-color);
+  background: rgba(var(--tag-color-rgb), 0.15);
+  transition: background-color 0.2s;
+}
+
+.tag::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  background-color: currentColor;
+}
+
+/* === Detail Tags === */
+.detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 1rem 0;
+}
+
+.detail-tags .tag {
+  font-size: 0.9rem;
+  padding: 3px 10px;
+}
+
+/* === Filter Tags === */
+.advanced-filters-content .select__control {
+  border-color: #dee2e6;
+  border-radius: 6px;
+  min-height: 38px;
+  box-shadow: none;
+}
+
+.advanced-filters-content .select__control:hover {
+  border-color: #adb5bd;
+}
+
+.advanced-filters-content .select__multi-value {
+  background-color: rgba(var(--tag-color-rgb), 0.15);
+  border-radius: 4px;
+}
+
+.advanced-filters-content .select__multi-value__label {
+  color: var(--tag-color);
+  font-weight: 500;
+  padding: 3px;
+  padding-left: 6px;
+}
+
+.advanced-filters-content .select__multi-value__remove {
+  color: var(--tag-color);
+  border-radius: 0 4px 4px 0;
+}
+
+.advanced-filters-content .select__multi-value__remove:hover {
+  background-color: var(--tag-color);
+  color: white;
+}
+
+.advanced-filters-content .select__option {
+  display: flex;
+  align-items: center;
+  color: #333;
+}
+
+.advanced-filters-content .select__option::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+  background-color: var(--tag-color);
+}
+
+.advanced-filters-content .select__option--is-focused {
+  background-color: rgba(var(--tag-color-rgb), 0.1);
+}
+
+.advanced-filters-content .select__option--is-selected {
+  background-color: rgba(var(--tag-color-rgb), 0.4);
+} 

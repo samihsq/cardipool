@@ -13,37 +13,27 @@ function Info() {
         <div className="content-card">
           <h2>About cardipool</h2>
           <p>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor 
-            incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud 
-            exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+            Welcome to cardipool, the Stanford community's hub for shared rides. Whether you're heading to the airport, a concert, or just your daily commute, cardipool makes it easy to connect with fellow students and staff to share the journey. Our goal is to make travel simpler, more affordable, and more sustainable for everyone on campus.
           </p>
           
           <h3>How It Works</h3>
           <p>
-            Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu 
-            fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in 
-            culpa qui officia deserunt mollit anim id est laborum.
+            Our platform is built on a simple principle: connecting drivers with passengers. Drivers can post their travel plans, and passengers can browse available carpools to find one that fits their needs. It's a community-driven way to get where you need to go.
           </p>
           
           <h3>Getting Started</h3>
           <p>
-            Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque 
-            laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi 
-            architecto beatae vitae dicta sunt explicabo.
+            Getting started is easy. Log in with your Stanford credentials to access the dashboard. From there, you can either click the "+ add" button to offer a ride or browse the existing carpools. When you find a ride you're interested in, click on it to see the details and request to join.
           </p>
           
           <h3>Community Guidelines</h3>
           <p>
-            Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia 
-            consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro 
-            quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit.
+            To ensure a positive experience for everyone, we ask all users to be respectful, punctual, and communicative. Treat your fellow carpoolers with courtesy, leave the car as clean as you found it, and communicate clearly if your plans change.
           </p>
           
           <h3>Safety First</h3>
           <p>
-            Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit 
-            laboriosam, nisi ut aliquid ex ea commodi consequatur. Quis autem vel eum iure 
-            reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur.
+            Your safety is our top priority. This platform is exclusively for the Stanford community, but we still encourage you to use your best judgment when arranging a carpool. Share your trip details with a friend, and don't hesitate to report any concerns to our support team.
           </p>
         </div>
       </div>

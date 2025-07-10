@@ -14,51 +14,70 @@ const hexToRgba = (hex, alpha) => {
 };
 
 export const tagSelectStyles = {
-  control: (styles) => ({
-    ...styles,
-    borderColor: '#ccc',
+  control: (provided) => ({
+    ...provided,
+    backgroundColor: '#f8f9fa',
+    border: '1px solid #dee2e6',
+    borderRadius: '8px',
     boxShadow: 'none',
+    minHeight: 'auto',
     '&:hover': {
-      borderColor: '#aaa',
+      borderColor: '#adb5bd',
     },
+  }),
+  placeholder: (provided) => ({
+    ...provided,
+    color: '#6c757d',
+    fontSize: '0.8rem',
+  }),
+  input: (provided) => ({
+    ...provided,
+    color: '#495057',
+    fontSize: '0.8rem',
+  }),
+  singleValue: (provided) => ({
+    ...provided,
+    fontSize: '0.8rem',
+  }),
+  valueContainer: (provided) => ({
+    ...provided,
+    padding: '0.45rem 0.75rem',
   }),
   option: (styles, { data, isDisabled, isFocused, isSelected }) => {
     return {
       ...styles,
       display: 'flex',
       alignItems: 'center',
-      color: '#333',
+      color: data.color,
       backgroundColor: isDisabled
         ? undefined
         : isSelected
-        ? hexToRgba(data.color, 0.4)
+        ? hexToRgba(data.color, 0.15)
         : isFocused
-        ? hexToRgba(data.color, 0.1)
+        ? hexToRgba(data.color, 0.08)
         : undefined,
       ':before': {
         backgroundColor: data.color,
-        borderRadius: '10px',
+        borderRadius: '50%',
         content: '" "',
         display: 'block',
         marginRight: 8,
-        height: 10,
-        width: 10,
+        height: 8,
+        width: 8,
       },
       ':active': {
         ...styles[':active'],
         backgroundColor: !isDisabled
-          ? hexToRgba(data.color, 0.6)
+          ? hexToRgba(data.color, 0.2)
           : undefined,
       },
     };
   },
-  multiValue: (styles, { data }) => {
-    return {
-      ...styles,
-      backgroundColor: hexToRgba(data.color, 0.15),
-      borderRadius: '4px',
-    };
-  },
+  multiValue: (provided, { data }) => ({
+    ...provided,
+    backgroundColor: hexToRgba(data.color, 0.15),
+    borderRadius: '4px',
+  }),
   multiValueLabel: (styles, { data }) => ({
     ...styles,
     color: data.color,

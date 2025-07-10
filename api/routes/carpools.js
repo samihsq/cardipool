@@ -158,22 +158,22 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { 
-      title, description, contact, departure_date, 
+      title, description, email, phone, departure_date, 
       departure_time, capacity, tags, carpool_type,
       event_name, pickup_details, dropoff_details
     } = req.body;
     
-    if (!title || !contact || !departure_date || !departure_time || !capacity) {
-      return res.status(400).json({ error: 'Title, contact, departure date/time, and capacity are required' });
+    if (!title || !departure_date || !departure_time || !capacity) {
+      return res.status(400).json({ error: 'Title, departure date/time, and capacity are required' });
     }
     
     const userId = req.user.id;
     
     const result = await pool.query(
       `INSERT INTO carpools 
-        (title, description, contact, departure_date, departure_time, capacity, tags, created_by, carpool_type, event_name, pickup_details, dropoff_details)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-      [title, description, contact, departure_date, departure_time, capacity, tags || [], userId, carpool_type, event_name, pickup_details, dropoff_details]
+        (title, description, email, phone, departure_date, departure_time, capacity, tags, created_by, carpool_type, event_name, pickup_details, dropoff_details)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+      [title, description, email, phone, departure_date, departure_time, capacity, tags || [], userId, carpool_type, event_name, pickup_details, dropoff_details]
     );
     
     const carpoolWithDetails = await pool.query(`
@@ -195,27 +195,48 @@ router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { 
-      title, description, contact, departure_date, 
+      title, description, email, phone, departure_date, 
       departure_time, capacity, tags, carpool_type,
       event_name, pickup_details, dropoff_details
     } = req.body;
+
     const userId = req.user.id;
 
-    const existingCarpool = await pool.query('SELECT * FROM carpools WHERE id = $1 AND created_by = $2', [id, userId]);
-    if (existingCarpool.rows.length === 0) {
-      return res.status(404).json({ error: 'Carpool not found or you do not have permission to edit it.' });
+    // First, verify the user is the creator of the carpool
+    const carpool = await pool.query('SELECT created_by FROM carpools WHERE id = $1', [id]);
+    if (carpool.rows.length === 0) {
+      return res.status(404).json({ error: 'Carpool not found' });
+    }
+    if (carpool.rows[0].created_by !== userId) {
+      return res.status(403).json({ error: 'You are not authorized to edit this carpool' });
     }
 
     const result = await pool.query(
-      `UPDATE carpools 
-       SET title = $1, description = $2, contact = $3, departure_date = $4, 
-           departure_time = $5, capacity = $6, tags = $7, carpool_type = $8,
-           event_name = $9, pickup_details = $10, dropoff_details = $11, updated_at = NOW()
-       WHERE id = $12 RETURNING *`,
-      [title, description, contact, departure_date, departure_time, capacity, tags, carpool_type, event_name, pickup_details, dropoff_details, id]
+      `UPDATE carpools SET 
+        title = $1, description = $2, email = $3, phone = $4,
+        departure_date = $5, departure_time = $6, capacity = $7, tags = $8,
+        carpool_type = $9, event_name = $10, pickup_details = $11, dropoff_details = $12,
+        updated_at = NOW()
+       WHERE id = $13 RETURNING *`,
+      [
+        title, description, email, phone, departure_date, 
+        departure_time, capacity, tags || [], carpool_type, 
+        event_name, pickup_details, dropoff_details, id
+      ]
     );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Carpool could not be updated' });
+    }
     
-    res.json(result.rows[0]);
+    const carpoolWithDetails = await pool.query(`
+      SELECT c.*, u.display_name as creator_name, u.sunet_id as creator_sunet_id
+      FROM carpools c 
+      LEFT JOIN users u ON c.created_by = u.id
+      WHERE c.id = $1
+    `, [id]);
+
+    res.json(carpoolWithDetails.rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

@@ -2,7 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Select from 'react-select';
 import { useAuth } from '../contexts/AuthContext';
-import { tagSelectStyles } from '../styles/tagStyles'; // Import the styles
+import { tagSelectStyles } from '../styles/tagStyles';
+import '../styles/tagStyles.css';
 import './AddCarpool.css';
 
 function AddCarpool() {
@@ -12,12 +13,13 @@ function AddCarpool() {
   const [form, setForm] = useState({
     title: '',
     description: '',
-    contact: '',
+    email: '',
+    phone: '',
     departure_date: '',
     departure_time: '',
     capacity: 4,
     tags: [],
-    carpool_type: 'other',
+    carpool_type: 'airport',
     event_name: '',
     pickup_details: '',
     dropoff_details: ''
@@ -69,7 +71,13 @@ function AddCarpool() {
       });
 
       if (response.ok) {
-        navigate('/dashboard');
+        const newCarpool = await response.json();
+        navigate('/dashboard', {
+          state: {
+            newCarpoolId: newCarpool.id,
+            carpoolType: newCarpool.carpool_type,
+          }
+        });
       } else {
         const errorData = await response.json();
         setError(errorData.error || 'Error creating carpool');
@@ -160,9 +168,16 @@ function AddCarpool() {
             Capacity (incl. driver)*:
             <input name="capacity" type="number" min="2" max="10" value={form.capacity} onChange={handleChange} required disabled={loading} />
           </label>
+        </div>
+        
+        <div className="form-row">
           <label>
-            Contact Info*:
-            <input name="contact" value={form.contact} onChange={handleChange} required disabled={loading} placeholder="Email or phone" />
+            Email:
+            <input type="email" name="email" value={form.email} onChange={handleChange} disabled={loading} placeholder="your-email@stanford.edu" />
+          </label>
+          <label>
+            Phone:
+            <input type="tel" name="phone" value={form.phone} onChange={handleChange} disabled={loading} placeholder="(123) 456-7890" />
           </label>
         </div>
 
