@@ -23,6 +23,7 @@ const Dashboard = () => {
   const [isEditing, setIsEditing] = useState(false);
   const profileRef = useRef(null);
   const [carpoolTypeFilter, setCarpoolTypeFilter] = useState(null);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const [filters, setFilters] = useState({
     search: '',
@@ -139,7 +140,7 @@ const Dashboard = () => {
   const selectedTagObjects = tags.filter(tag => filters.tags.includes(tag.value));
 
   return (
-    <div className="dashboard wave-bg">
+    <div className={`dashboard wave-bg ${selected ? 'details-visible-mobile' : ''}`}>
       <header className="dash-header">
         <div className="left">
           <h1 className="cardipool-text">cardipools:</h1>
@@ -179,22 +180,34 @@ const Dashboard = () => {
                     <span>to</span>
                     <input type="date" name="date_to" value={filters.date_to} onChange={handleFilterChange} />
                   </div>
-                  <Select isMulti name="tags" options={tags} value={selectedTagObjects} onChange={handleTagFilterChange} styles={tagSelectStyles} placeholder="Filter by tags..." />
-                  <label className="available-only-filter">
-                    <input type="checkbox" name="available_only" checked={filters.available_only} onChange={handleFilterChange} />
-                    Show available only
-                  </label>
-                  <div className="sort-filter">
-                      <select name="sortBy" value={filters.sortBy} onChange={handleFilterChange}>
-                          <option value="departure_date">Departure Date</option>
-                          <option value="created_at">Recently Created</option>
-                          <option value="capacity">Capacity</option>
-                      </select>
-                      <select name="sortOrder" value={filters.sortOrder} onChange={handleFilterChange}>
-                          <option value="ASC">Asc</option>
-                          <option value="DESC">Desc</option>
-                      </select>
+
+                  <div 
+                      className={`advanced-filters-toggle ${showAdvancedFilters ? 'open' : ''}`}
+                      onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                  >
+                      Advanced {showAdvancedFilters ? '▲' : '▼'}
                   </div>
+
+                  {showAdvancedFilters && (
+                      <div className="advanced-filters-content">
+                          <Select isMulti name="tags" options={tags} value={selectedTagObjects} onChange={handleTagFilterChange} styles={tagSelectStyles} placeholder="Filter by tags..." />
+                          <label className="available-only-filter">
+                            <input type="checkbox" name="available_only" checked={filters.available_only} onChange={handleFilterChange} />
+                            Show available only
+                          </label>
+                          <div className="sort-filter">
+                              <select name="sortBy" value={filters.sortBy} onChange={handleFilterChange}>
+                                  <option value="departure_date">Departure Date</option>
+                                  <option value="created_at">Recently Created</option>
+                                  <option value="capacity">Capacity</option>
+                              </select>
+                              <select name="sortOrder" value={filters.sortOrder} onChange={handleFilterChange}>
+                                  <option value="ASC">Asc</option>
+                                  <option value="DESC">Desc</option>
+                              </select>
+                          </div>
+                      </div>
+                  )}
               </div>
               <CarpoolList carpools={carpools} selected={selected} onSelect={handleSelectCarpool} loading={loading} />
             </>
@@ -223,7 +236,7 @@ const Dashboard = () => {
             isEditing ? (
               <EditCarpoolForm carpool={selected} onSave={handleSave} onCancel={() => setIsEditing(false)} allTags={tags} />
             ) : (
-              <CarpoolDetails carpool={selected} user={user} onEdit={() => setIsEditing(true)} onDelete={handleDelete} onUpdate={fetchCarpools} />
+              <CarpoolDetails carpool={selected} user={user} onEdit={() => setIsEditing(true)} onDelete={handleDelete} onUpdate={fetchCarpools} onBack={() => setSelected(null)} />
             )
           ) : (
             <div className="select-carpool"><p>Select a carpool to view details.</p></div>
@@ -263,7 +276,7 @@ const CarpoolList = ({ carpools, selected, onSelect, loading }) => {
     );
 };
 
-const CarpoolDetails = ({ carpool, user, onEdit, onDelete, onUpdate }) => {
+const CarpoolDetails = ({ carpool, user, onEdit, onDelete, onUpdate, onBack }) => {
     const [joinRequestStatus, setJoinRequestStatus] = useState({ loading: false, error: null, success: null });
     const [carpoolRequests, setCarpoolRequests] = useState([]);
 
@@ -327,6 +340,7 @@ const CarpoolDetails = ({ carpool, user, onEdit, onDelete, onUpdate }) => {
 
     return (
       <>
+        <button className="back-to-list-btn" onClick={onBack}>&larr; Back to List</button>
         <div className="details-header">
           <h2>{carpool.title}</h2>
           {user?.id === carpool.created_by && (

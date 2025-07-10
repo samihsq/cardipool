@@ -78,3 +78,5 @@ typings/
 private.key
 cert.pem
 sample_rideshare.csv
+*.pem
+*.base64

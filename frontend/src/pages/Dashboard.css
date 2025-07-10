@@ -47,7 +47,7 @@
 }
 
 .profile {
-  position: relative;
+  position: relative; /* Establish positioning context */
   cursor: pointer;
   user-select: none;
   display: flex;
@@ -71,12 +71,13 @@
 }
 
 .profile-menu {
-  position: fixed;
-  right: 1rem;
-  top: 3rem;
-  background: #fff;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  position: absolute;
+  top: 100%; /* Position below the profile button */
+  right: 0;
+  margin-top: 0.5rem; /* Add some space */
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
   padding: 0.5rem 1rem;
   display: flex;
   flex-direction: column;
@@ -672,6 +673,10 @@
     margin-bottom: 0;
 }
 
+.back-to-list-btn {
+  display: none; /* Hidden on desktop */
+}
+
 .details-edit-form .save-btn,
 .details-edit-form .cancel-btn {
     padding: 0.6rem 1.2rem;
@@ -691,4 +696,97 @@
 .details-edit-form .cancel-btn {
     background-color: #6c757d;
     color: white;
+} 
+
+.advanced-filters-toggle {
+  text-align: center;
+  color: #333; /* Black text by default */
+  cursor: pointer;
+  padding: 0.5rem;
+  margin-top: 0.25rem; /* Smaller top margin for compressed look */
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+}
+
+.advanced-filters-toggle:hover {
+  color: #007bff; /* Blue on hover */
+}
+
+.advanced-filters-toggle.open {
+  color: #007bff; /* Blue when open */
+  border-top: 1px solid #eee;
+  margin-top: 0.75rem;
+}
+
+.advanced-filters-content {
+  padding-top: 0.75rem;
+  border-top: 1px solid #eee;
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (max-width: 768px) {
+  .dash-header {
+    padding: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .dash-header .left, .dash-header .right {
+    flex-basis: 100%;
+    justify-content: center;
+  }
+  .dash-header .right {
+    gap: 0.75rem;
+  }
+
+  .content {
+    flex-direction: column;
+    height: auto;
+    overflow-x: hidden; /* Prevent horizontal scroll */
+  }
+
+  .list {
+    width: 100%;
+    border-right: none;
+    height: auto;
+  }
+  
+  .details {
+    display: none; /* Initially hidden on mobile */
+    width: 100%;
+    height: auto;
+    padding: 1rem;
+  }
+  
+  .dashboard.details-visible-mobile .list {
+    display: none;
+  }
+
+  .dashboard.details-visible-mobile .details {
+    display: block;
+  }
+
+  .back-to-list-btn {
+    display: block;
+    width: 100%;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+
+  .back-to-list-btn:hover {
+    background-color: #5a6268;
+  }
+
+  .select-carpool {
+    height: 30vh;
+  }
 } 

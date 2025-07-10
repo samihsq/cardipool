@@ -1,6 +1,8 @@
+import './config.js'; // This MUST be the first import
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
@@ -8,7 +10,7 @@ import cookieParser from 'cookie-parser';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 
 import pool from './db.js';
-import passport from './auth.js';
+import passport, { strategy, spCert } from './auth.js'; // Import the strategy and spCert
 import authRouter, { requireAuth, addUserInfo } from './routes/auth.js';
 import carpoolRouter from './routes/carpools.js';
 import tagsRouter from './routes/tags.js';
@@ -61,10 +63,10 @@ app.use(addUserInfo);
 
 // Metadata endpoint for Stanford registration
 app.get('/auth/metadata', (req, res) => {
-  const publicCert = process.env.SAML_PUBLIC_CERT || '';
-  // Remove the -----BEGIN CERTIFICATE----- and -----END CERTIFICATE----- headers/footers
-  // and any newlines, as required by the XML format.
-  const certData = publicCert.replace(/-----(BEGIN|END) CERTIFICATE-----/g, '').replace(/\s/g, '');
+  // Strip the PEM headers/footers and all whitespace from the cert
+  const certData = spCert
+    .replace(/-----(BEGIN|END) CERTIFICATE-----/g, '')
+    .replace(/\s/g, '');
 
   const metadata = `<?xml version="1.0"?>
 <EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" entityID="${process.env.APP_BASE_URL}">
@@ -86,9 +88,9 @@ app.get('/auth/metadata', (req, res) => {
     <AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="${process.env.APP_BASE_URL}/auth/saml/callback" index="1"/>
   </SPSSODescriptor>
 </EntityDescriptor>`;
-  
-  res.set('Content-Type', 'application/xml');
-  res.send(metadata);
+
+  res.type('application/xml');
+  res.status(200).send(metadata);
 });
 
 // Route to start the SAML authentication process
@@ -208,10 +210,8 @@ app.use((error, req, res, next) => {
 // Only start the server if not in Vercel (for local development)
 if (!process.env.VERCEL && !process.env.LAMBDA_TASK_ROOT) {
   app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-    console.log(`🔐 Auth metadata: http://localhost:${PORT}/auth/metadata`);
-    console.log(`🎓 Stanford SSO: http://localhost:${PORT}/auth/login`);
+    console.log(`Server is running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   });
 }
 
