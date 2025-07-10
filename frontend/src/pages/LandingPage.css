@@ -41,10 +41,31 @@
   border-radius: 12px;
   cursor: pointer;
   transition: background-color 0.2s;
+  margin-bottom: 1rem;
 }
 
 .login-btn:hover {
   background-color: #720f0f;  /* Slightly darker on hover */
+}
+
+.login-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.info-text {
+  color: #666;
+  font-size: 0.9rem;
+  text-align: center;
+  max-width: 400px;
+  line-height: 1.4;
+}
+
+.loading-text {
+  color: var(--cardinal-red);
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-top: 2rem;
 }
 
 /* Remove the generic button styles since we're using specific class */
