@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import Select from 'react-select';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,8 +8,9 @@ import './AddCarpool.css';
 
 function AddCarpool() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
-  const [tags, setTags] = useState([]);
+  const [allTags, setAllTags] = useState([]);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -31,13 +32,27 @@ function AddCarpool() {
     fetchTags();
   }, []);
 
+  useEffect(() => {
+    if (location.state?.defaultType && allTags.length > 0) {
+      const defaultType = location.state.defaultType;
+      const defaultTag = allTags.find(t => t.label.toLowerCase() === defaultType.toLowerCase());
+      
+      setForm(prev => ({
+        ...prev,
+        carpool_type: defaultType,
+        tags: defaultTag ? [defaultTag.value] : [],
+      }));
+    }
+  }, [location.state, allTags]);
+
   const fetchTags = async () => {
     try {
       const response = await fetch('/api/tags');
       if (response.ok) {
         const data = await response.json();
         // Format for react-select
-        setTags(data.map(tag => ({ value: tag.id, label: tag.name, color: tag.color })));
+        const formattedTags = data.map(tag => ({ value: tag.id, label: tag.name, color: tag.color }));
+        setAllTags(formattedTags);
       }
     } catch (err) {
       console.error('Error fetching tags:', err);
@@ -90,7 +105,7 @@ function AddCarpool() {
     }
   };
 
-  const selectedTagObjects = tags.filter(tag => form.tags.includes(tag.value));
+  const selectedTagObjects = allTags.filter(tag => form.tags.includes(tag.value));
 
   return (
     <div className="add wave-bg">
@@ -186,7 +201,7 @@ function AddCarpool() {
           <Select
             isMulti
             name="tags"
-            options={tags}
+            options={allTags}
             className="basic-multi-select"
             classNamePrefix="select"
             onChange={handleTagChange}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Select from 'react-select';
 import { tagSelectStyles } from '../styles/tagStyles';
+import EditCarpoolForm from '../components/EditCarpoolForm';
 import './MyTrips.css';
 
 const MyTrips = () => {
@@ -26,13 +27,28 @@ const MyTrips = () => {
         fetchTags();
     }, []);
 
+    const getDepartureDateTime = (trip) => {
+        const datePart = trip.departure_date.split('T')[0];
+        return new Date(`${datePart}T${trip.departure_time || '00:00:00'}`);
+    };
+
     const fetchTrips = async () => {
         try {
             setLoading(true);
             const response = await fetch('/api/carpools/mine', { credentials: 'include' });
             if (response.ok) {
                 const data = await response.json();
-                setTrips(data);
+                const now = new Date();
+
+                const upcoming = data
+                    .filter(trip => getDepartureDateTime(trip) >= now)
+                    .sort((a, b) => getDepartureDateTime(a) - getDepartureDateTime(b));
+
+                const completed = data
+                    .filter(trip => getDepartureDateTime(trip) < now)
+                    .sort((a, b) => getDepartureDateTime(b) - getDepartureDateTime(a));
+                
+                setTrips([...upcoming, ...completed]);
             } else {
                 setError('Failed to fetch your trips.');
             }
@@ -96,24 +112,28 @@ const MyTrips = () => {
                 </div>
             ) : (
                 <div className="trips-list">
-                    {trips.map(trip => (
-                        <div key={trip.id} className="trip-card">
-                            {editingTripId === trip.id ? (
-                                <EditTripForm 
-                                    trip={trip} 
-                                    onSave={() => { setEditingTripId(null); fetchTrips(); }}
-                                    onCancel={handleCancel}
-                                    allTags={allTags}
-                                />
-                            ) : (
-                                <TripDetails 
-                                    trip={trip} 
-                                    onEdit={handleEditClick}
-                                    onDelete={handleDelete}
-                                />
-                            )}
-                        </div>
-                    ))}
+                    {trips.map(trip => {
+                        const isCompleted = getDepartureDateTime(trip) < new Date();
+                        return (
+                            <div key={trip.id} className={`trip-card ${isCompleted ? 'completed' : ''}`}>
+                                {isCompleted && <div className="completed-overlay">Ride Complete</div>}
+                                {editingTripId === trip.id ? (
+                                    <EditCarpoolForm 
+                                        carpool={trip} 
+                                        onSave={() => { setEditingTripId(null); fetchTrips(); }}
+                                        onCancel={handleCancel}
+                                        allTags={allTags}
+                                    />
+                                ) : (
+                                    <TripDetails 
+                                        trip={trip} 
+                                        onEdit={handleEditClick}
+                                        onDelete={handleDelete}
+                                    />
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
             )}
         </div>
@@ -183,133 +203,6 @@ const TripDetails = ({ trip, onEdit, onDelete }) => {
             </div>
         </>
     )
-};
-
-// Component for the inline edit form
-const EditTripForm = ({ trip, onSave, onCancel, allTags }) => {
-    const [formData, setFormData] = useState({
-        title: trip.title,
-        description: trip.description || '',
-        contact: trip.contact,
-        departure_date: trip.departure_date ? new Date(trip.departure_date).toISOString().split('T')[0] : '',
-        departure_time: trip.departure_time || '',
-        capacity: trip.capacity,
-        tags: trip.tags || [],
-        carpool_type: trip.carpool_type || 'other',
-        event_name: trip.event_name || '',
-        pickup_details: trip.pickup_details || '',
-        dropoff_details: trip.dropoff_details || ''
-    });
-    const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState(null);
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleTagChange = (selectedOptions) => {
-        setFormData(prev => ({ ...prev, tags: selectedOptions ? selectedOptions.map(o => o.value) : [] }));
-    };
-    
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setIsSaving(true);
-        setError(null);
-        try {
-            const response = await fetch(`/api/carpools/${trip.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify(formData),
-            });
-            if (response.ok) {
-                onSave();
-            } else {
-                const errData = await response.json();
-                setError(errData.error || 'Failed to save changes.');
-            }
-        } catch (err) {
-            setError('An error occurred while saving.');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-    
-    const selectedTagObjects = allTags.filter(tag => formData.tags.includes(tag.value));
-
-    return (
-        <form onSubmit={handleSubmit} className="inline-edit-form">
-            <label>Title</label>
-            <input type="text" name="title" value={formData.title} onChange={handleChange} required />
-            
-            <label>Description</label>
-            <textarea name="description" value={formData.description} onChange={handleChange}></textarea>
-            
-            <label>Type</label>
-            <select name="carpool_type" value={formData.carpool_type} onChange={handleChange} required>
-                <option value="other">Other</option>
-                <option value="airport">Airport</option>
-                <option value="event">Event</option>
-                <option value="commute">Commute</option>
-            </select>
-
-            {formData.carpool_type === 'event' && (
-                <>
-                    <label>Event Name</label>
-                    <input type="text" name="event_name" value={formData.event_name} onChange={handleChange} placeholder="Event Name" />
-                </>
-            )}
-
-            <label>Pickup Details</label>
-            <textarea name="pickup_details" value={formData.pickup_details} onChange={handleChange} placeholder="e.g. Tresidder flagpole" />
-            
-            <label>Dropoff Details</label>
-            <textarea name="dropoff_details" value={formData.dropoff_details} onChange={handleChange} placeholder="e.g. SFO Terminal 1" />
-
-            <div className="form-row">
-                <div>
-                    <label>Departure Date</label>
-                    <input type="date" name="departure_date" value={formData.departure_date} onChange={handleChange} required />
-                </div>
-                <div>
-                    <label>Departure Time</label>
-                    <input type="time" name="departure_time" value={formData.departure_time} onChange={handleChange} required />
-                </div>
-            </div>
-            
-            <div className="form-row">
-                <div>
-                    <label>Capacity</label>
-                    <input type="number" name="capacity" value={formData.capacity} onChange={handleChange} required min="1" />
-                </div>
-                <div>
-                    <label>Contact Info</label>
-                    <input type="text" name="contact" value={formData.contact} onChange={handleChange} required />
-                </div>
-            </div>
-            
-            <label>Tags</label>
-            <Select
-                isMulti
-                name="tags"
-                options={allTags}
-                className="basic-multi-select"
-                classNamePrefix="select"
-                placeholder="Select tags..."
-                value={selectedTagObjects}
-                onChange={handleTagChange}
-                styles={tagSelectStyles}
-            />
-            {error && <p className="form-error">{error}</p>}
-            <div className="form-actions">
-                <button type="submit" className="save-button" disabled={isSaving}>
-                    {isSaving ? 'Saving...' : 'Save'}
-                </button>
-                <button type="button" className="cancel-button" onClick={onCancel}>Cancel</button>
-            </div>
-        </form>
-    );
 };
 
 export default MyTrips;

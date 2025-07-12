@@ -18,7 +18,7 @@ function Info() {
           
           <h3>How It Works</h3>
           <p>
-            Our platform is built on a simple principle: connecting drivers with passengers. Drivers can post their travel plans, and passengers can browse available carpools to find one that fits their needs. It's a community-driven way to get where you need to go.
+            Our platform is built on a simple principle: connecting rides with passengers. Drivers/hosts can post their travel plans, and passengers can browse available carpools to find one that fits their needs. It's a community-driven way to get where you need to go.
           </p>
           
           <h3>Getting Started</h3>

@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import pool from '../db.js';
+import { requireAuth } from './auth.js';
+import { sendEmail } from '../email.js';
 
 const router = Router();
 
@@ -92,7 +94,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET carpools created by or joined by the current user
-router.get('/mine', async (req, res) => {
+router.get('/mine', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     const result = await pool.query(`
@@ -155,7 +157,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // CREATE carpool
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
     const { 
       title, description, email, phone, departure_date, 
@@ -191,7 +193,7 @@ router.post('/', async (req, res) => {
 });
 
 // UPDATE carpool
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { 
@@ -244,7 +246,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE carpool
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -265,135 +267,205 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// REQUEST TO JOIN a carpool
-router.post('/:id/join', async (req, res) => {
-  try {
-    const { id: carpool_id } = req.params;
-    const user_id = req.user.id;
-    const { message } = req.body;
+// GET join requests for a specific carpool (for the owner)
+router.get('/:carpoolId/requests', requireAuth, async (req, res) => {
+  const { carpoolId } = req.params;
+  const ownerId = req.user.id;
 
-    const carpool = await pool.query('SELECT * FROM carpools WHERE id = $1', [carpool_id]);
+  try {
+    const carpool = await pool.query('SELECT created_by FROM carpools WHERE id = $1', [carpoolId]);
     if (carpool.rows.length === 0) {
       return res.status(404).json({ error: 'Carpool not found' });
     }
-
-    if (carpool.rows[0].created_by === user_id) {
-        return res.status(400).json({ error: "You can't join your own carpool" });
-    }
-
-    if (carpool.rows[0].current_passengers >= carpool.rows[0].capacity) {
-        return res.status(400).json({ error: "This carpool is already full" });
+    if (carpool.rows[0].created_by !== ownerId) {
+      return res.status(403).json({ error: 'You are not authorized to view requests for this carpool' });
     }
 
     const result = await pool.query(
-      `INSERT INTO join_requests (carpool_id, user_id, message)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (carpool_id, user_id) DO UPDATE SET message = EXCLUDED.message, status = 'pending', updated_at = NOW()
-       RETURNING *`,
-      [carpool_id, user_id, message]
+      `SELECT jr.*, u.display_name, u.sunet_id, u.email
+       FROM join_requests jr
+       JOIN users u ON jr.user_id = u.id
+       WHERE jr.carpool_id = $1
+       ORDER BY jr.created_at DESC`,
+      [carpoolId]
     );
 
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error(err);
-    if (err.code === '23505') {
-        return res.status(409).json({ error: "You've already sent a request to join this carpool." });
-    }
-    res.status(500).json({ error: 'Server error' });
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching join requests:', error);
+    res.status(500).json({ error: 'An internal error occurred.' });
   }
 });
 
-// GET join requests for a specific carpool (creator only)
-router.get('/:id/requests', async (req, res) => {
+// Route for a user to request to join a carpool
+router.post('/:carpoolId/join', requireAuth, async (req, res) => {
+  const { carpoolId } = req.params;
+  const userId = req.user.id;
+
+  try {
+    const client = await pool.connect();
     try {
-        const { id: carpool_id } = req.params;
-        const user_id = req.user.id;
+      await client.query('BEGIN');
 
-        const carpool = await pool.query('SELECT created_by FROM carpools WHERE id = $1', [carpool_id]);
-        if (carpool.rows.length === 0) {
-            return res.status(404).json({ error: 'Carpool not found' });
-        }
-        if (carpool.rows[0].created_by !== user_id) {
-            return res.status(403).json({ error: 'You are not authorized to view requests for this carpool' });
-        }
+      // Check if the carpool exists and has capacity
+      const carpoolResult = await client.query(
+        `SELECT c.*, u.email as owner_email, u.display_name as owner_name 
+         FROM carpools c 
+         JOIN users u ON c.created_by = u.id 
+         WHERE c.id = $1`,
+        [carpoolId]
+      );
+      if (carpoolResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Carpool not found.' });
+      }
 
-        const result = await pool.query(
-            `SELECT jr.*, u.display_name, u.sunet_id, u.email
-             FROM join_requests jr
-             JOIN users u ON jr.user_id = u.id
-             WHERE jr.carpool_id = $1
-             ORDER BY jr.created_at DESC`,
-            [carpool_id]
-        );
+      const carpool = carpoolResult.rows[0];
 
-        res.json(result.rows);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Server error' });
+      // Prevent user from joining their own carpool
+      if (carpool.created_by === userId) {
+        return res.status(400).json({ error: 'You cannot join your own carpool.' });
+      }
+
+      // Check if user has already requested to join
+      const existingRequest = await client.query(
+        'SELECT * FROM join_requests WHERE carpool_id = $1 AND user_id = $2',
+        [carpoolId, userId]
+      );
+      if (existingRequest.rows.length > 0) {
+        return res.status(409).json({ error: 'You have already sent a request to join this carpool.' });
+      }
+
+      // Insert the new join request
+      await client.query(
+        'INSERT INTO join_requests (carpool_id, user_id, status) VALUES ($1, $2, $3)',
+        [carpoolId, userId, 'pending']
+      );
+
+      await client.query('COMMIT');
+
+      // Send email notification asynchronously (don't make user wait)
+      const requesterName = req.user.displayName || req.user.sunet_id;
+      sendEmail(
+        carpool.owner_email,
+        `New Join Request for "${carpool.title}"`,
+        `
+          <p>Hi ${carpool.owner_name || 'Carpool Owner'},</p>
+          <p><strong>${requesterName}</strong> has requested to join your carpool, "<strong>${carpool.title}</strong>".</p>
+          <p>Please log in to your Cardipool dashboard to approve or reject this request.</p>
+          <br/>
+          <p>Thanks,<br/>The Cardipool Team</p>
+        `
+      ).catch(err => {
+        // Log the error, but don't fail the HTTP request because the primary action (DB insert) succeeded.
+        console.error(`[Email] Failed to send join request notification to ${carpool.owner_email}:`, err);
+      });
+
+      res.status(201).json({ message: 'Join request sent successfully.' });
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error processing join request:', error);
+      res.status(500).json({ error: 'An internal error occurred.' });
+    } finally {
+      client.release();
     }
+  } catch(err) {
+      console.error('Database connection error:', err);
+      res.status(500).json({ error: 'Failed to connect to the database.' });
+  }
 });
 
-// UPDATE join request status (approve/reject)
-router.put('/requests/:requestId', async (req, res) => {
+
+// Route for carpool owner to approve or reject a join request
+router.put('/:carpoolId/requests/:requestId', requireAuth, async (req, res) => {
+  const { carpoolId, requestId } = req.params;
+  const ownerId = req.user.id;
+
+  try {
+    const client = await pool.connect();
     try {
-        const { requestId } = req.params;
-        const { status } = req.body;
-        const user_id = req.user.id;
+      await client.query('BEGIN');
 
-        if (!status || !['approved', 'rejected'].includes(status)) {
-            return res.status(400).json({ error: "Invalid status. Must be 'approved' or 'rejected'." });
+      const { status } = req.body;
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status provided.' });
+      }
+
+      // Fetch the request details to get the requester's info
+      const requestResult = await client.query(
+        `SELECT r.id, r.status, u.id as user_id, u.email as requester_email, u.display_name as requester_name,
+                c.id as carpool_id, c.title as carpool_title, c.created_by
+         FROM join_requests r
+         JOIN users u ON r.user_id = u.id
+         JOIN carpools c ON r.carpool_id = c.id
+         WHERE r.id = $1 AND r.carpool_id = $2`,
+        [requestId, carpoolId]
+      );
+
+      if (requestResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Request not found.' });
+      }
+      
+      const requestDetails = requestResult.rows[0];
+
+      // Verify that the logged-in user is the carpool owner
+      if (requestDetails.created_by !== ownerId) {
+        return res.status(403).json({ error: 'You are not authorized to manage this request.' });
+      }
+
+      // Prevent updating a request that's not pending
+      if (requestDetails.status !== 'pending') {
+        return res.status(409).json({ error: `This request has already been ${requestDetails.status}.` });
+      }
+
+      // If approving, check for capacity
+      if (status === 'approved') {
+        const carpool = await client.query('SELECT current_passengers, capacity FROM carpools WHERE id = $1 FOR UPDATE', [carpoolId]);
+        if (carpool.rows[0].current_passengers >= carpool.rows[0].capacity) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: 'This carpool is already full.' });
         }
+        // Increment passenger count
+        await client.query('UPDATE carpools SET current_passengers = current_passengers + 1 WHERE id = $1', [carpoolId]);
+      }
+      
+      // Update the request status
+      const updatedRequest = await client.query(
+        'UPDATE join_requests SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+        [status, requestId]
+      );
+      
+      await client.query('COMMIT');
 
-        const requestQuery = await pool.query(
-            `SELECT jr.*, c.created_by, c.capacity, c.current_passengers
-             FROM join_requests jr
-             JOIN carpools c ON jr.carpool_id = c.id
-             WHERE jr.id = $1`,
-            [requestId]
-        );
+      // Send email notification to the requester
+      const subject = `Your request for "${requestDetails.carpool_title}" has been ${status}`;
+      const htmlBody = `
+        <p>Hi ${requestDetails.requester_name || 'there'},</p>
+        <p>Your request to join the carpool "<strong>${requestDetails.carpool_title}</strong>" has been <strong>${status}</strong>.</p>
+        ${status === 'approved' ? '<p>You can now see this trip in your "My Trips" section on Cardipool.</p>' : ''}
+        <br/>
+        <p>Thanks,<br/>The Cardipool Team</p>
+      `;
+      
+      sendEmail(requestDetails.requester_email, subject, htmlBody)
+        .catch(err => {
+          console.error(`[Email] Failed to send status update to ${requestDetails.requester_email}:`, err);
+        });
 
-        if (requestQuery.rows.length === 0) {
-            return res.status(404).json({ error: 'Join request not found' });
-        }
+      res.status(200).json(updatedRequest.rows[0]);
 
-        const { carpool_id, created_by, capacity, current_passengers } = requestQuery.rows[0];
-
-        if (created_by !== user_id) {
-            return res.status(403).json({ error: 'You are not authorized to manage this request' });
-        }
-
-        const client = await pool.connect();
-        try {
-            await client.query('BEGIN');
-
-            if (status === 'approved') {
-                if (current_passengers >= capacity) {
-                    throw new Error('Carpool is full');
-                }
-                await client.query('UPDATE carpools SET current_passengers = current_passengers + 1 WHERE id = $1', [carpool_id]);
-            }
-
-            const updatedRequest = await client.query(
-                `UPDATE join_requests SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
-                [status, requestId]
-            );
-
-            await client.query('COMMIT');
-            res.json(updatedRequest.rows[0]);
-
-        } catch (e) {
-            await client.query('ROLLBACK');
-            if (e.message === 'Carpool is full') {
-                return res.status(409).json({ error: 'Cannot approve, the carpool is now full.' });
-            }
-            throw e;
-        } finally {
-            client.release();
-        }
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Server error' });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error updating join request:', error);
+      res.status(500).json({ error: 'An internal error occurred.' });
+    } finally {
+      client.release();
     }
+  } catch(err) {
+      console.error('Database connection error:', err);
+      res.status(500).json({ error: 'Failed to connect to the database.' });
+  }
 });
+
 
 export default router; 

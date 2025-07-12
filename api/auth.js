@@ -15,14 +15,27 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 // Helper function to format a certificate from a one-line env var
 const formatCert = (cert) => {
   if (!cert) return null;
-  // Replace literal '\n' with actual newlines
-  const formattedCert = cert.replace(/\\n/g, '\n');
-  // Ensure it's wrapped with the correct header and footer
-  if (formattedCert.startsWith('-----BEGIN CERTIFICATE-----')) {
-    return formattedCert;
+
+  // If it's already a full PEM with newlines, just return it
+  if (cert.startsWith('-----BEGIN CERTIFICATE-----') && cert.includes('\\n')) {
+    return cert.replace(/\\n/g, '\n');
   }
-  return `-----BEGIN CERTIFICATE-----\n${formattedCert}\n-----END CERTIFICATE-----`;
-}
+  
+  // Clean up the cert string: remove PEM headers/footers and any newlines/whitespace
+  const certBody = cert
+    .replace(/-----(BEGIN|END) CERTIFICATE-----/g, '')
+    .replace(/\s/g, '');
+
+  // Split the body into 64-character chunks
+  const chunks = certBody.match(/.{1,64}/g) || [];
+  
+  // Re-assemble the full PEM-formatted certificate
+  return [
+    '-----BEGIN CERTIFICATE-----',
+    ...chunks,
+    '-----END CERTIFICATE-----'
+  ].join('\n');
+};
 
 // Load IdP certificate(s) from file path
 let idpCertValue = null; // This will hold either a single PEM string or an array of them.

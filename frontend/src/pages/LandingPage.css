@@ -4,31 +4,84 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  position: relative;  /* For absolute positioning of collab text */
+  position: relative;
+  overflow: hidden; /* Prevent scrollbars from animation */
+}
+
+/*
+.eco-animation-wrapper {
+  width: 100%;
+  max-width: 800px; /* Widen the wrapper for a grander curve * /
+  height: 250px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  margin-bottom: 1rem;
+}
+*/
+
+.title-container {
+  position: relative; /* Make this the positioning parent */
+  display: inline-block; /* Shrink-wrap the h1's content */
+  z-index: 10;
+  margin-bottom: 2rem;
+}
+
+.main-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6.5rem;
 }
 
 .logo {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 3rem;
-  font-weight: bold;
-  margin-bottom: 0.5rem;  /* Reduced from 2rem to accommodate collab text */
-  color: var(--cardinal-red);
+  height: 80px; /* Adjust as needed */
+  margin-right: 20px;
 }
 
-.logo img {
-  height: 3rem;
-  width: auto;
+.eco-title {
+  font-family: 'Helvetica Neue', sans-serif;
+  font-size: 4rem;
+  font-weight: 700;
+  color: #720f0f; /* A nice, cardinal red */
+  text-align: center;
+  /* Remove position relative, as the parent handles it now */
 }
+
+/*
+.eco-duck, .eco-tree {
+  position: absolute;
+  /* Set the element's origin to its center * /
+  top: 50%;
+  left: 50%;
+  font-size: 2.5rem;
+  z-index: 5;
+  will-change: transform, opacity;
+}
+
+.eco-duck svg {
+  color: #FFD700; /* A bright, rubber-duck yellow * /
+  stroke: black;
+  stroke-width: 2px;
+  width: 100%;
+  height: 100%;
+}
+
+.eco-tree {
+  font-size: 2rem;
+  z-index: 4;
+}
+*/
 
 .collab-text {
+  position: absolute;
+  top: 2rem; /* Move closer vertically */
+  right: 6.65rem; /* Align with right edge of parent */
   color: #666;
   font-size: 0.9rem;
-  margin-bottom: 2rem;
-  margin-top: -1.25rem;
-  align-self: flex-end;
-  margin-right: calc(50% - 133px);  /* Aligns with the end of 'cardipool' text */
+  text-align: right;
+  white-space: nowrap; /* Prevent wrapping */
 }
 
 .login-btn {
@@ -41,11 +94,12 @@
   border-radius: 12px;
   cursor: pointer;
   transition: background-color 0.2s;
-  margin-bottom: 1rem;
+  /* Add margin to push it down from the animation */
+  margin-top: -1rem;
 }
 
 .login-btn:hover {
-  background-color: #720f0f;  /* Slightly darker on hover */
+  background-color: #720f0f;
 }
 
 .login-btn:disabled {
@@ -54,21 +108,17 @@
 }
 
 .info-text {
+  position: absolute;
+  bottom: 1.25rem; /* Move closer vertically */
+  left: 6.5rem; /* Align with left edge of parent */
   color: #666;
   font-size: 0.9rem;
-  text-align: center;
-  max-width: 400px;
+  max-width: none;
   line-height: 1.4;
+  text-align: left;
+  white-space: nowrap; /* Prevent wrapping */
 }
 
-.loading-text {
-  color: var(--cardinal-red);
-  font-size: 1.1rem;
-  font-weight: 500;
-  margin-top: 2rem;
-}
-
-/* Remove the generic button styles since we're using specific class */
 button {
   font-size: 1rem;
   cursor: pointer;

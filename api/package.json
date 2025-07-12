@@ -11,6 +11,7 @@
   "keywords": [],
   "author": "",
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.844.0",
     "@node-saml/passport-saml": "^5.0.1",
     "connect-pg-simple": "^10.0.0",
     "cookie-parser": "^1.4.7",

@@ -1,0 +1,102 @@
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.edit-form h3 {
+  font-size: 1.5rem;
+  margin: 0 0 0.5rem 0;
+  color: var(--cardinal-red);
+}
+
+.edit-form input,
+.edit-form textarea,
+.edit-form .select-container .select__control {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background-color: #f8f9fa;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.edit-form input:focus,
+.edit-form textarea:focus,
+.edit-form .select-container .select__control--is-focused {
+  outline: none;
+  border-color: #adb5bd;
+  background-color: #fff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.edit-form textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.edit-form .select-container {
+  width: 100%;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-field label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #343a40;
+}
+
+.form-field.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  border-top: 1px solid #e9ecef;
+  padding-top: 1.5rem;
+}
+
+.save-btn, .cancel-btn {
+  padding: 0.6rem 1.25rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.save-btn {
+  background-color: #28a745;
+  color: white;
+}
+
+.save-btn:hover {
+  background-color: #218838;
+}
+
+.cancel-btn {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  color: #333;
+}
+
+.cancel-btn:hover {
+  background-color: #e2e6ea;
+} 

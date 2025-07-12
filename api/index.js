@@ -21,22 +21,43 @@ const PORT = process.env.PORT || 3000;
 // Session store using PostgreSQL
 const PgSession = connectPgSimple(session);
 
-// Configure CORS for Vercel and authentication
+// --- Production-Ready CORS and Session Configuration ---
+
+// Determine the correct frontend URL based on Vercel's environment variables
+const getFrontendUrl = () => {
+  // VERCEL_PROJECT_PRODUCTION_URL is the one we want for the live site
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  // VERCEL_URL is the raw deployment URL, good for previews
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return process.env.FRONTEND_URL || 'http://localhost:5173';
+};
+
+const frontendUrl = getFrontendUrl();
+const isProduction = process.env.NODE_ENV === 'production';
+
+// In production, we trust the Vercel proxy. This is required for secure cookies.
+if (isProduction) {
+  app.set('trust proxy', 1);
+}
+
+// CORS options that explicitly allow credentials from our frontend
 const corsOptions = {
-  origin: process.env.VERCEL_URL || process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: frontendUrl,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 
-// Middleware setup
 app.use(cors(corsOptions));
-app.use(cookieParser());
 app.use(express.json());
-app.use(express.urlencoded({ extended: false })); // Required for SAML POST callbacks
+app.use(express.urlencoded({ extended: true })); // Use true for complex nested objects in SAML
 
 // Session configuration
-app.use(session({
+const sessionConfig = {
   store: new PgSession({
     pool: pool,
     tableName: 'session',
@@ -46,15 +67,23 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // HTTPS in production
     httpOnly: true,
     maxAge: 1000 * 60 * 60 * 24 // 24 hours
   }
-}));
+};
+
+if (isProduction) {
+  sessionConfig.cookie.secure = true; // Only send cookie over HTTPS
+  sessionConfig.cookie.sameSite = 'none'; // Required for cross-site cookie sending with secure
+}
+
+app.use(session(sessionConfig));
 
 // Initialize Passport
 app.use(passport.initialize());
 app.use(passport.session());
+
+// --- End of new configuration ---
 
 // Add user info to all requests (optional, doesn't require auth)
 app.use(addUserInfo);
@@ -109,10 +138,32 @@ app.get(
 // Callback route where the IdP sends the SAML response
 app.post(
   '/auth/saml/callback',
-  passport.authenticate('saml', { failureRedirect: '/login-error', failureFlash: false }),
-  (req, res) => {
-    // Redirect to dashboard after successful auth
-    res.redirect('/#/dashboard');
+  (req, res, next) => {
+    passport.authenticate('saml', (err, user, info) => {
+      if (err) {
+        // Pass catastrophic errors to the global error handler.
+        // No response has been sent yet, so this is safe.
+        return next(err);
+      }
+      if (!user) {
+        // Handle authentication failure (e.g., invalid SAML response).
+        // We manually redirect to a login error page.
+        // You might want to log `info` for debugging.
+        console.error('SAML authentication failed:', info);
+        return res.redirect('/#/login-error?message=auth_failed');
+      }
+      // If we get here, authentication was successful.
+      // Manually log the user into the session.
+      req.logIn(user, (err) => {
+        if (err) {
+          return next(err);
+        }
+        // On successful login, redirect to the dashboard.
+        const returnTo = req.session.returnTo || '/#/dashboard';
+        delete req.session.returnTo; // Clean up session
+        return res.redirect(returnTo);
+      });
+    })(req, res, next);
   }
 );
 
@@ -181,17 +232,16 @@ app.use('/api/*', (req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
 });
 
-// Serve React build files (add this when you deploy)
-// app.use(express.static('build'));
-
-// Proxy to frontend dev server - MUST BE LAST
-// Proxy all non-API requests to the Vite dev server
-app.use('/', createProxyMiddleware({
-  target: 'http://localhost:5173',
-  changeOrigin: true,
-  ws: true, // Enable WebSocket proxying for HMR
-  logLevel: 'silent'
-}));
+if (process.env.NODE_ENV !== 'production') {
+  // Proxy to frontend dev server - MUST BE LAST
+  // Proxy all non-API requests to the Vite dev server
+  app.use('/', createProxyMiddleware({
+    target: 'http://localhost:5173',
+    changeOrigin: true,
+    ws: true, // Enable WebSocket proxying for HMR
+    logLevel: 'silent'
+  }));
+}
 
 // Global error handler
 app.use((error, req, res, next) => {
