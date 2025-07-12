@@ -1,5 +1,6 @@
 .landing {
   height: 100vh;
+  min-height: 100dvh; /* Use dynamic viewport height if supported */
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -123,3 +124,18 @@ button {
   font-size: 1rem;
   cursor: pointer;
 } 
+
+@media (max-width: 480px) {
+  .info-text {
+    margin-left: 5rem;
+  }
+  .logo {
+    margin-left: 5rem;
+  }
+}
+
+@supports (min-height: 100dvh) {
+  .landing {
+    min-height: 100dvh;
+  }
+}
