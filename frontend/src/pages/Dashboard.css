@@ -272,8 +272,16 @@
 }
 
 /* Search input styling */
-.search-input {
+.search-container {
+  position: relative;
   width: 100%;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.search-input {
+  flex: 1;
   padding: 0.45rem 1rem;
   border: 1px solid #dee2e6;
   border-radius: 8px;
@@ -288,6 +296,23 @@
   outline: none;
   border-color: #adb5bd;
   background-color: #fff;
+}
+
+.clear-filters-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  margin-bottom: 0.75rem;
+}
+
+.clear-filters-btn:hover {
+  background: #c82333;
 }
 
 /* Date filter section */

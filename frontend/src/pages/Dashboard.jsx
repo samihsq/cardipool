@@ -175,6 +175,18 @@ const Dashboard = () => {
     setFilters(prev => ({ ...prev, date_from: formattedDate, date_to: formattedDate }));
     setShowCalendar(false);
   };
+
+  const clearFilters = () => {
+    setFilters({
+      search: '',
+      tags: [],
+      date_from: '',
+      date_to: '',
+      available_only: false,
+      sortBy: 'departure_date',
+      sortOrder: 'ASC'
+    });
+  };
   
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this trip?')) {
@@ -288,7 +300,14 @@ const Dashboard = () => {
                     />
                   ) : (
                     <>
-                      <input type="text" name="search" placeholder="Search by keyword..." value={filters.search} onChange={handleFilterChange} className="search-input" />
+                      <div className="search-container">
+                        <input type="text" name="search" placeholder="Search by keyword..." value={filters.search} onChange={handleFilterChange} className="search-input" />
+                        {(filters.search || filters.tags.length > 0 || filters.date_from || filters.date_to || filters.available_only) && (
+                          <button type="button" onClick={clearFilters} className="clear-filters-btn" title="Clear all filters">
+                            Clear
+                          </button>
+                        )}
+                      </div>
                       <div className="date-filters">
                         <input type="date" name="date_from" value={filters.date_from} onChange={handleFilterChange} />
                         <span>to</span>
