@@ -249,6 +249,10 @@ const Dashboard = () => {
                 <div className="profile-name">{user?.displayName || user?.sunetId}</div>
                 <div className="profile-email">{user?.email || user?.sunetId + '@stanford.edu'}</div>
               </div>
+              <div className="dropdown-links">
+                <Link to="/info" className="dropdown-link">Info</Link>
+                <Link to="/help" className="dropdown-link">Help</Link>
+              </div>
               <button onClick={logout} className="logout-btn">Log out</button>
             </div>
           </div>

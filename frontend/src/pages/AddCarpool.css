@@ -216,4 +216,9 @@
   .add-header h2 {
     font-size: 1.5rem;
   }
+
+  .form-row {
+    flex-direction: column;
+    gap: 1.2rem;
+  }
 } 
