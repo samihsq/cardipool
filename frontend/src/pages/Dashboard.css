@@ -963,7 +963,7 @@
   .details {
     display: none;
     width: 100%;
-    border-radius: 0;
+    border-radius: 12px; /* Add rounded corners for mobile */
     box-shadow: none;
     border-top: 1px solid #dee2e6;
   }
