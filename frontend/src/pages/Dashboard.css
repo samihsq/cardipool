@@ -163,6 +163,26 @@
   background: #f8f9fa;
 }
 
+.dropdown-links {
+  display: none; /* Hidden by default on desktop */
+  flex-direction: column;
+  border-top: 1px solid #eee;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+}
+
+.dropdown-link {
+  padding: 0.5rem 0.75rem;
+  color: #333;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.dropdown-link:hover {
+  background-color: #f8f9fa;
+}
+
 /* === Search and Filters === */
 .filters {
     display: flex;
@@ -252,8 +272,16 @@
 }
 
 /* Search input styling */
-.search-input {
+.search-container {
+  position: relative;
   width: 100%;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.search-input {
+  flex: 1;
   padding: 0.45rem 1rem;
   border: 1px solid #dee2e6;
   border-radius: 8px;
@@ -268,6 +296,23 @@
   outline: none;
   border-color: #adb5bd;
   background-color: #fff;
+}
+
+.clear-filters-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 0.45rem 1rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  margin-bottom: 0.75rem;
+}
+
+.clear-filters-btn:hover {
+  background: #c82333;
 }
 
 /* Date filter section */
@@ -917,9 +962,22 @@
 }
 
 @media (max-width: 768px) {
+  .header-icons {
+    display: none; /* Hide original icons on mobile */
+  }
+
+  .dropdown-links {
+    display: flex; /* Show dropdown links on mobile */
+  }
+
+  .dash-header .right {
+    gap: 0.5rem; /* Reduce gap on mobile */
+  }
+
   .content {
     flex-direction: column;
-    padding: 0;
+    height: calc(100vh - 65px); /* Adjust height for header */
+    padding: 1rem 0.25rem 0 0.25rem; /* Add top padding for spacing from header */
     gap: 0;
   }
   .list {
@@ -930,7 +988,7 @@
   .details {
     display: none;
     width: 100%;
-    border-radius: 0;
+    border-radius: 12px; /* Add rounded corners for mobile */
     box-shadow: none;
     border-top: 1px solid #dee2e6;
   }

@@ -130,6 +130,11 @@ function AddCarpool() {
 
       <form onSubmit={handleSubmit} className="add-form">
         <label>
+          Title*:
+          <input name="title" value={form.title} onChange={handleChange} required disabled={loading} placeholder="e.g., Trip to SFO" />
+        </label>
+        
+        <label>
             Carpool Type*:
             <select name="carpool_type" value={form.carpool_type} onChange={handleChange} required disabled={loading} className="carpool-type-select">
                 <option value="other">Other</option>
@@ -138,11 +143,6 @@ function AddCarpool() {
                 <option value="commute">Commute</option>
                 <option value="recurring">Recurring</option>
             </select>
-        </label>
-        
-        <label>
-          Title*:
-          <input name="title" value={form.title} onChange={handleChange} required disabled={loading} placeholder="e.g., Trip to SFO" />
         </label>
         
         <label>
