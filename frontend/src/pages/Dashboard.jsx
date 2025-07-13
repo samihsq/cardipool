@@ -562,7 +562,16 @@ const CarpoolDetails = ({ carpool, user, onEdit, onDelete, onUpdate, onBack }) =
                         </div>
                         <div className="detail-item">
                             <span className="detail-label">📧 Contact</span>
-                            <span className="detail-value">{carpool.email || carpool.phone || 'Not provided'}</span>
+                            <span className="detail-value">
+                              {carpool.email && (
+                                <a href={`mailto:${carpool.email}`}>{carpool.email}</a>
+                              )}
+                              {carpool.email && carpool.phone && <br />}
+                              {carpool.phone && (
+                                <a href={`tel:${carpool.phone}`}>{carpool.phone}</a>
+                              )}
+                              {!(carpool.email || carpool.phone) && 'Not provided'}
+                            </span>
                         </div>
                         <div className="detail-item">
                             <span className="detail-label">👤 Created By</span>
