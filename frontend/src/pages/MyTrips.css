@@ -101,10 +101,21 @@
     text-align: center;
     border-radius: 8px;
     z-index: 10;
+    pointer-events: none; /* This is the key change */
 }
 
 .trip-card:hover {
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.trip-details-collapsible {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease-in-out;
+}
+
+.trip-details-collapsible.expanded {
+  max-height: 1000px; /* Adjust if content can be taller */
 }
 
 .trip-card-header {
@@ -112,6 +123,7 @@
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 1rem;
+    cursor: pointer; /* Indicates it's clickable */
 }
 
 .trip-card-header h3 {
@@ -232,4 +244,142 @@
 .role-badge.passenger {
     background-color: #d1fae5; /* Light green */
     color: #065f46;
+}
+
+.role-badge.pending {
+    background-color: #fef3c7; /* Light yellow/amber */
+    color: #92400e;
+}
+
+.role-badge.rejected {
+    background-color: #fee2e2; /* Light red */
+    color: #991b1b;
+}
+
+.role-badge.removed {
+    background-color: #e5e7eb; /* Light gray */
+    color: #4b5563;
+}
+
+/* Styles for Owner Actions (Join Requests & Passengers) */
+.owner-actions {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #eee;
+  /* display: flex, flex-direction, and gap removed for a more direct approach */
+}
+
+.join-requests {
+  margin-top: 1.5rem; /* Add space ONLY above this section */
+}
+
+/* Ensure no extra margins are interfering */
+.join-requests, .passenger-list {
+  margin-bottom: 0;
+}
+
+.join-requests h4, .passenger-list h4 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.request-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+}
+
+.request-info {
+  font-size: 0.95rem;
+}
+
+.request-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.approve-btn, .reject-btn {
+  padding: 0.4rem 0.8rem;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-weight: 500;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.approve-btn {
+  background-color: #007bff; /* Blue */
+}
+
+.approve-btn:hover {
+  background-color: #0069d9;
+}
+
+.reject-btn {
+  background-color: #6c757d; /* Gray */
+}
+
+.reject-btn:hover {
+  background-color: #5a6268;
+}
+
+.passenger-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.passenger-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f8f9fa;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.remove-passenger-btn {
+  background: none;
+  border: none;
+  color: #dc3545;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.5rem;
+  transition: color 0.2s;
+}
+
+.remove-passenger-btn:hover {
+  color: #a71d2a;
+}
+
+.status-badge {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: 12px;
+  text-transform: capitalize;
+}
+
+.status-badge.approved {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.rejected, .status-badge.removed {
+  background-color: #fee2e2;
+  color: #991b1b;
 } 

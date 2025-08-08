@@ -33,6 +33,7 @@ const Dashboard = () => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [carpoolDates, setCarpoolDates] = useState([]);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const profileRef = useRef(null);
 
   const [filters, setFilters] = useState({
@@ -44,6 +45,25 @@ const Dashboard = () => {
     sortBy: 'departure_date',
     sortOrder: 'ASC'
   });
+
+  useEffect(() => {
+    const fetchPendingRequests = async () => {
+      try {
+        const response = await fetch('/api/notifications/pending-requests', { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          setPendingRequestsCount(data.pendingRequests || 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch pending requests count:', error);
+      }
+    };
+
+    fetchPendingRequests(); // Fetch on initial load
+    const intervalId = setInterval(fetchPendingRequests, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const fetchCarpoolsForCalendar = async () => {
     try {
@@ -238,7 +258,12 @@ const Dashboard = () => {
           </button>
         </div>
         <nav className="right">
-          <Link to="/my-trips">My Trips</Link>
+          <Link to="/my-trips" className="my-trips-link">
+            My Trips
+            {pendingRequestsCount > 0 && (
+              <span className="notification-indicator">{pendingRequestsCount}</span>
+            )}
+          </Link>
           <div className="header-icons">
             <Link to="/info" className="header-icon" title="Information">
               Info
@@ -392,6 +417,11 @@ const Dashboard = () => {
 }
 
 const CarpoolList = ({ carpools, selected, onSelect, loading, carpoolTypeFilter }) => {
+    const getDepartureDateTime = (carpool) => {
+        const datePart = carpool.departure_date.split('T')[0];
+        return new Date(`${datePart}T${carpool.departure_time || '00:00:00'}`);
+    };
+
     const formatDate = d => new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     const formatTime = t => t ? new Date(`1970-01-01T${t}Z`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) : '';
 
@@ -408,50 +438,68 @@ const CarpoolList = ({ carpools, selected, onSelect, loading, carpoolTypeFilter 
                 </div>
             )}
             
-            {carpools.map(carpool => (
-                <div key={carpool.id} className={`carpool-card ${selected?.id === carpool.id ? 'selected' : ''}`} onClick={() => onSelect(carpool)}>
-                    <div className="card-header">
-                        <h4 className="card-title">{carpool.title}</h4>
-                        <div className="card-capacity">{carpool.current_passengers}/{carpool.capacity} seats</div>
-                    </div>
-                    <div className="card-body">
-                        <div className="card-tags">
-                            {carpool.tag_details?.map(tag => (
-                                <span 
-                                    key={tag.id} 
-                                    className="tag" 
-                                    style={{ 
-                                        '--tag-color': tag.color,
-                                        '--tag-color-rgb': tag.color.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', '),
-                                        color: tag.color
-                                    }}
-                                >
-                                    {tag.name}
-                                </span>
-                            ))}
+            {carpools.map(carpool => {
+                const isCompleted = getDepartureDateTime(carpool) < new Date();
+                return (
+                    <div key={carpool.id} className={`carpool-card ${selected?.id === carpool.id ? 'selected' : ''} ${isCompleted ? 'completed' : ''}`} onClick={() => onSelect(carpool)}>
+                        {isCompleted && <div className="completed-overlay">Ride Complete</div>}
+                        <div className="card-header">
+                            <h4 className="card-title">{carpool.title}</h4>
+                            <div className="card-capacity">{carpool.current_passengers}/{carpool.capacity} seats</div>
+                        </div>
+                        <div className="card-body">
+                            <div className="card-tags">
+                                {carpool.tag_details?.map(tag => (
+                                    <span 
+                                        key={tag.id} 
+                                        className="tag" 
+                                        style={{ 
+                                            '--tag-color': tag.color,
+                                            '--tag-color-rgb': tag.color.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', '),
+                                            color: tag.color
+                                        }}
+                                    >
+                                        {tag.name}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="card-footer">
+                            <div className="card-departure">{formatDate(carpool.departure_date)} @ {formatTime(carpool.departure_time)}</div>
+                            <div className="card-creator">by {carpool.creator_name}</div>
                         </div>
                     </div>
-                    <div className="card-footer">
-                        <div className="card-departure">{formatDate(carpool.departure_date)} @ {formatTime(carpool.departure_time)}</div>
-                        <div className="card-creator">by {carpool.creator_name}</div>
-                    </div>
-                </div>
-            ))}
+                )
+            })}
         </div>
     );
 };
 
 const CarpoolDetails = ({ carpool, user, onEdit, onDelete, onUpdate, onBack }) => {
     const [joinRequests, setJoinRequests] = useState([]);
+    const [passengers, setPassengers] = useState([]);
     const [isRequesting, setIsRequesting] = useState(false);
+    const [userRequestStatus, setUserRequestStatus] = useState(null);
 
     const formatDeparture = () => {
         if (!carpool.departure_date || !carpool.departure_time) return 'N/A';
         return new Date(carpool.departure_date).toLocaleDateString() + ' at ' + new Date(`1970-01-01T${carpool.departure_time}Z`).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' });
     };
 
+    const fetchPassengers = async () => {
+        if (!carpool.id) return;
+        try {
+            const response = await fetch(`/api/carpools/${carpool.id}/passengers`, { credentials: 'include' });
+            const data = await response.json();
+            if (response.ok) setPassengers(data);
+        } catch (err) {
+            console.error("Failed to fetch passengers", err);
+        }
+    };
+
     useEffect(() => {
-        const fetchRequests = async () => {
+        const fetchRequestsAndStatus = async () => {
+            // Fetch owner's view of all requests
             if (user?.id === carpool.created_by) {
                 try {
                     const response = await fetch(`/api/carpools/${carpool.id}/requests`, { credentials: 'include' });
@@ -460,9 +508,19 @@ const CarpoolDetails = ({ carpool, user, onEdit, onDelete, onUpdate, onBack }) =
                 } catch (err) { console.error("Failed to fetch join requests", err); }
             } else {
                 setJoinRequests([]);
+                 // Fetch requester's view of their own status
+                try {
+                    const response = await fetch(`/api/carpools/${carpool.id}/my-request-status`, { credentials: 'include' });
+                    const data = await response.json();
+                    if (response.ok) setUserRequestStatus(data.status);
+                } catch (err) { console.error("Failed to fetch user request status", err); }
             }
         };
-        if (carpool.id) fetchRequests();
+
+        if (carpool.id) {
+            fetchRequestsAndStatus();
+            fetchPassengers();
+        }
     }, [carpool.id, user?.id, carpool.created_by]);
 
     const handleJoinRequest = async () => {
@@ -477,6 +535,7 @@ const CarpoolDetails = ({ carpool, user, onEdit, onDelete, onUpdate, onBack }) =
             const data = await response.json();
             if (response.ok) {
                 setIsRequesting(false);
+                setUserRequestStatus('pending'); // Immediately update UI
                 alert('Request sent!');
             } else {
                 throw new Error(data.error || 'Failed to send request');
@@ -497,12 +556,36 @@ const CarpoolDetails = ({ carpool, user, onEdit, onDelete, onUpdate, onBack }) =
             });
             if (response.ok) {
                 setJoinRequests(prev => prev.map(r => r.id === requestId ? { ...r, status } : r));
+                if (status === 'approved') {
+                    fetchPassengers(); // Re-fetch passengers on approval
+                }
                 onUpdate(); // Re-fetch carpools to update capacity
             } else {
                 throw new Error('Failed to update request status');
             }
         } catch (err) {
             alert(err.message);
+        }
+    };
+
+    const handleRemovePassenger = async (passengerId) => {
+        if (window.confirm('Are you sure you want to remove this passenger from the carpool?')) {
+            try {
+                const response = await fetch(`/api/carpools/${carpool.id}/passengers/${passengerId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    fetchPassengers(); // Re-fetch passengers
+                    onUpdate(); // Re-fetch carpools to update capacity
+                } else {
+                    const data = await response.json();
+                    throw new Error(data.error || 'Failed to remove passenger');
+                }
+            } catch (err) {
+                alert(err.message);
+            }
         }
     };
 
@@ -578,6 +661,23 @@ const CarpoolDetails = ({ carpool, user, onEdit, onDelete, onUpdate, onBack }) =
                             <span className="detail-value">{carpool.creator_name}</span>
                         </div>
                     </div>
+                    {passengers.length > 0 && (
+                        <div className="passenger-list">
+                            <h4>Passengers</h4>
+                            <ul>
+                                {passengers.map(p => (
+                                    <li key={p.id}>
+                                        {p.display_name}
+                                        {user?.id === carpool.created_by && (
+                                            <button onClick={() => handleRemovePassenger(p.id)} className="remove-passenger-btn">
+                                                &times;
+                                            </button>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                 </div>
                 <div className="details-side">
                     <div className="detail-item multiline">
@@ -587,8 +687,19 @@ const CarpoolDetails = ({ carpool, user, onEdit, onDelete, onUpdate, onBack }) =
                     
                     <div className="join-section">
                         {user?.id !== carpool.created_by && (
-                            <button onClick={handleJoinRequest} disabled={isRequesting} className="join-btn">
-                                {isRequesting ? 'Sending...' : 'Request to Join'}
+                            <button 
+                                onClick={handleJoinRequest} 
+                                disabled={isRequesting || userRequestStatus} 
+                                className="join-btn"
+                            >
+                                {isRequesting 
+                                    ? 'Sending...' 
+                                    : userRequestStatus === 'pending'
+                                    ? 'Request Sent'
+                                    : userRequestStatus === 'rejected'
+                                    ? 'Request Rejected'
+                                    : 'Request to Join'
+                                }
                             </button>
                         )}
                         {user?.id === carpool.created_by && joinRequests.length > 0 && (
@@ -597,7 +708,7 @@ const CarpoolDetails = ({ carpool, user, onEdit, onDelete, onUpdate, onBack }) =
                                 {joinRequests.map(req => (
                                     <div key={req.id} className="request-item">
                                         <div className="request-info">
-                                            <strong>{req.user_display_name}</strong> ({req.user_sunet_id})
+                                            <strong>{req.display_name}</strong> ({req.sunet_id})
                                         </div>
                                         <div className="request-actions">
                                             {req.status === 'pending' ? (

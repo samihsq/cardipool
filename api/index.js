@@ -14,6 +14,7 @@ import passport, { strategy, spCert } from './auth.js'; // Import the strategy a
 import authRouter, { requireAuth, addUserInfo } from './routes/auth.js';
 import carpoolRouter from './routes/carpools.js';
 import tagsRouter from './routes/tags.js';
+import notificationsRouter from './routes/notifications.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -198,12 +199,13 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Remove the old, broken auth router
-// app.use('/auth', authRouter);
+// Auth routes (including development bypass)
+app.use('/auth', authRouter);
 
 // Protected API routes (require authentication)
 app.use('/api/carpools', requireAuth, carpoolRouter);
 app.use('/api/tags', tagsRouter); // Tags can be public for now
+app.use('/api/notifications', requireAuth, notificationsRouter);
 
 // API user info endpoint
 app.get('/api/user', requireAuth, (req, res) => {
@@ -219,6 +221,29 @@ app.get('/api/user', requireAuth, (req, res) => {
   });
 });
 
+// Development-only test email endpoint
+if (process.env.NODE_ENV === 'development') {
+  app.post('/api/test-email', requireAuth, async (req, res) => {
+    try {
+      const { to, subject, html } = req.body;
+      
+      if (!to || !subject || !html) {
+        return res.status(400).json({ error: 'Missing required fields: to, subject, html' });
+      }
+      
+      // Import sendEmail here to avoid circular imports
+      const { sendEmail } = await import('./email.js');
+      
+      await sendEmail(to, subject, html);
+      res.json({ message: 'Test email sent successfully' });
+      
+    } catch (error) {
+      console.error('Test email error:', error);
+      res.status(500).json({ error: 'Failed to send test email: ' + error.message });
+    }
+  });
+}
+
 // Login error page
 app.get('/login-error', (req, res) => {
   res.status(401).json({ 
@@ -227,7 +252,7 @@ app.get('/login-error', (req, res) => {
   });
 });
 
-// Handle 404 for API routes
+// Handle 404 for API routes - MUST BE LAST API ROUTE
 app.use('/api/*', (req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
 });

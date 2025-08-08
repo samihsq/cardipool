@@ -82,7 +82,12 @@ router.get('/', async (req, res) => {
       FROM carpools c
       JOIN filtered_carpools fc ON c.id = fc.id
       LEFT JOIN users u ON c.created_by = u.id
-      ORDER BY ${sanitizedSortBy} ${sanitizedSortOrder} NULLS LAST
+      ORDER BY
+        CASE
+          WHEN ((c.departure_date + c.departure_time) AT TIME ZONE 'America/Los_Angeles') < NOW() THEN 1
+          ELSE 0
+        END,
+        ${sanitizedSortBy} ${sanitizedSortOrder} NULLS LAST
     `;
     
     const result = await pool.query(finalQuery, params);
@@ -98,22 +103,34 @@ router.get('/mine', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     const result = await pool.query(`
-      SELECT 
-        c.*, 
+      WITH user_trips AS (
+        -- Trips the user owns
+        SELECT
+          c.id,
+          'owner' as user_role
+        FROM carpools c
+        WHERE c.created_by = $1
+        
+        UNION
+        
+        -- Trips the user has an active request for (and doesn't own)
+        SELECT
+          c.id,
+          jr.status as user_role
+        FROM carpools c
+        JOIN join_requests jr ON c.id = jr.carpool_id
+        WHERE jr.user_id = $1 AND jr.status IN ('approved', 'pending', 'rejected', 'removed') AND c.created_by != $1
+      )
+      SELECT
+        c.*,
         u.display_name as creator_name,
         u.sunet_id as creator_sunet_id,
-        (c.created_by = $1) as is_owner,
-        array_agg(
-          CASE WHEN ct.id IS NOT NULL 
-          THEN json_build_object('id', ct.id, 'name', ct.name, 'color', ct.color)
-          ELSE NULL END
-        ) FILTER (WHERE ct.id IS NOT NULL) as tag_details
+        ut.user_role,
+        (SELECT array_agg(json_build_object('id', ct.id, 'name', ct.name, 'color', ct.color))
+         FROM carpool_tags ct WHERE ct.id = ANY(c.tags)) as tag_details
       FROM carpools c
-      LEFT JOIN users u ON c.created_by = u.id 
-      LEFT JOIN carpool_tags ct ON ct.id = ANY(c.tags)
-      LEFT JOIN join_requests jr ON c.id = jr.carpool_id
-      WHERE c.created_by = $1 OR (jr.user_id = $1 AND jr.status = 'approved')
-      GROUP BY c.id, u.display_name, u.sunet_id
+      JOIN user_trips ut ON c.id = ut.id
+      LEFT JOIN users u ON c.created_by = u.id
       ORDER BY c.departure_date DESC
     `, [userId]);
     
@@ -297,6 +314,44 @@ router.get('/:carpoolId/requests', requireAuth, async (req, res) => {
   }
 });
 
+// GET approved passengers for a specific carpool
+router.get('/:carpoolId/passengers', async (req, res) => {
+  const { carpoolId } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.display_name, u.sunet_id, u.email
+       FROM users u
+       JOIN join_requests jr ON u.id = jr.user_id
+       WHERE jr.carpool_id = $1 AND jr.status = 'approved'`,
+      [carpoolId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching passengers:', error);
+    res.status(500).json({ error: 'An internal error occurred.' });
+  }
+});
+
+// GET the current user's join request status for a specific carpool
+router.get('/:carpoolId/my-request-status', requireAuth, async (req, res) => {
+  const { carpoolId } = req.params;
+  const userId = req.user.id;
+  try {
+    const result = await pool.query(
+      `SELECT status FROM join_requests WHERE carpool_id = $1 AND user_id = $2`,
+      [carpoolId, userId]
+    );
+    if (result.rows.length > 0) {
+      res.json({ status: result.rows[0].status });
+    } else {
+      res.json({ status: null }); // No request found
+    }
+  } catch (error) {
+    console.error('Error fetching user request status:', error);
+    res.status(500).json({ error: 'An internal error occurred.' });
+  }
+});
+
 // Route for a user to request to join a carpool
 router.post('/:carpoolId/join', requireAuth, async (req, res) => {
   const { carpoolId } = req.params;
@@ -326,20 +381,34 @@ router.post('/:carpoolId/join', requireAuth, async (req, res) => {
         return res.status(400).json({ error: 'You cannot join your own carpool.' });
       }
 
-      // Check if user has already requested to join
-      const existingRequest = await client.query(
+      // Check user's existing request status
+      const existingRequestResult = await client.query(
         'SELECT * FROM join_requests WHERE carpool_id = $1 AND user_id = $2',
         [carpoolId, userId]
       );
-      if (existingRequest.rows.length > 0) {
-        return res.status(409).json({ error: 'You have already sent a request to join this carpool.' });
-      }
 
-      // Insert the new join request
-      await client.query(
-        'INSERT INTO join_requests (carpool_id, user_id, status) VALUES ($1, $2, $3)',
-        [carpoolId, userId, 'pending']
-      );
+      if (existingRequestResult.rows.length > 0) {
+        const existingRequest = existingRequestResult.rows[0];
+        const currentStatus = existingRequest.status;
+
+        if (currentStatus === 'pending' || currentStatus === 'approved') {
+          return res.status(409).json({ error: `You have already sent a request to join this carpool. Your current status is: ${currentStatus}.` });
+        }
+        
+        // If the status was 'rejected' or 'removed', allow them to re-request by updating the status to 'pending'
+        if (currentStatus === 'rejected' || currentStatus === 'removed') {
+          await client.query(
+            'UPDATE join_requests SET status = $1, updated_at = NOW() WHERE id = $2',
+            ['pending', existingRequest.id]
+          );
+        }
+      } else {
+        // If no request exists, insert a new one
+        await client.query(
+          'INSERT INTO join_requests (carpool_id, user_id, status) VALUES ($1, $2, $3)',
+          [carpoolId, userId, 'pending']
+        );
+      }
 
       await client.query('COMMIT');
 
@@ -429,9 +498,9 @@ router.put('/:carpoolId/requests/:requestId', requireAuth, async (req, res) => {
         await client.query('UPDATE carpools SET current_passengers = current_passengers + 1 WHERE id = $1', [carpoolId]);
       }
       
-      // Update the request status
+      // Update the request status and mark it as unread by the requester
       const updatedRequest = await client.query(
-        'UPDATE join_requests SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+        'UPDATE join_requests SET status = $1, viewed_by_requester = FALSE, updated_at = NOW() WHERE id = $2 RETURNING *',
         [status, requestId]
       );
       
@@ -464,6 +533,95 @@ router.put('/:carpoolId/requests/:requestId', requireAuth, async (req, res) => {
   } catch(err) {
       console.error('Database connection error:', err);
       res.status(500).json({ error: 'Failed to connect to the database.' });
+  }
+});
+
+// Route for carpool owner to remove a passenger from a carpool
+router.delete('/:carpoolId/passengers/:userId', requireAuth, async (req, res) => {
+  const { carpoolId, userId } = req.params;
+  const ownerId = req.user.id;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Verify the current user owns the carpool and get details for the email
+    const carpoolResult = await client.query(
+      `SELECT c.title, c.created_by, u.display_name as owner_name
+       FROM carpools c
+       JOIN users u ON c.created_by = u.id
+       WHERE c.id = $1`,
+      [carpoolId]
+    );
+
+    if (carpoolResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Carpool not found.' });
+    }
+
+    const carpool = carpoolResult.rows[0];
+    if (carpool.created_by !== ownerId) {
+      return res.status(403).json({ error: 'You are not authorized to modify this carpool.' });
+    }
+     // Cannot remove the owner
+    if (parseInt(userId, 10) === ownerId) {
+      return res.status(400).json({ error: 'You cannot remove yourself from a carpool you own.' });
+    }
+
+    // Get the removed user's details for the email
+    const removedUserResult = await client.query('SELECT display_name, email FROM users WHERE id = $1', [userId]);
+    if (removedUserResult.rows.length === 0) {
+        // This case should be rare, but good to handle
+        return res.status(404).json({ error: 'Passenger to be removed not found.' });
+    }
+    const removedUser = removedUserResult.rows[0];
+
+
+    // 2. Set the passenger's join_request status to 'removed' (or another status)
+    // This is better than deleting, as it preserves history.
+    const updateResult = await client.query(
+      `UPDATE join_requests
+       SET status = 'removed', updated_at = NOW()
+       WHERE carpool_id = $1 AND user_id = $2 AND status = 'approved'
+       RETURNING *`,
+      [carpoolId, userId]
+    );
+
+    // 3. If a row was updated, decrement the passenger count
+    if (updateResult.rowCount > 0) {
+      await client.query(
+        'UPDATE carpools SET current_passengers = current_passengers - 1 WHERE id = $1 AND current_passengers > 1',
+        [carpoolId]
+      );
+    } else {
+      // If no rows were updated, the user wasn't an approved passenger
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Approved passenger not found in this carpool.' });
+    }
+
+    await client.query('COMMIT');
+    res.status(200).json({ message: 'Passenger removed successfully.' });
+
+    // Send email notification outside of the transaction
+    sendEmail(
+      removedUser.email,
+      `You have been removed from the carpool: "${carpool.title}"`,
+      `
+        <p>Hi ${removedUser.display_name || 'there'},</p>
+        <p>You have been removed from the carpool "<strong>${carpool.title}</strong>" by the carpool owner, <strong>${carpool.owner_name}</strong>.</p>
+        <p>If you believe this was a mistake, you may want to contact the owner or find another ride on Cardipool.</p>
+        <br/>
+        <p>Thanks,<br/>The Cardipool Team</p>
+      `
+    ).catch(err => {
+      console.error(`[Email] Failed to send removal notification to ${removedUser.email}:`, err);
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error removing passenger:', error);
+    res.status(500).json({ error: 'An internal error occurred.' });
+  } finally {
+    client.release();
   }
 });
 
